@@ -785,7 +785,14 @@ export function useInviteTeamMember() {
 
       if (emailError) {
         console.error('❌ Erro ao enviar email:', emailError);
-        // Not throwing here as the invitation was created successfully
+        
+        // Check for domain verification error from Resend
+        if (emailError.message?.includes('DOMAIN_NOT_VERIFIED') || 
+            emailError.message?.includes('verify a domain')) {
+          throw new Error('Para enviar convites por email, é necessário verificar um domínio no Resend. Acesse https://resend.com/domains para configurar seu domínio.');
+        }
+        
+        // For other email errors, log but don't block the process
         console.log('⚠️ Email não enviado, mas convite foi criado no banco');
       } else {
         console.log('✅ Email enviado com sucesso');

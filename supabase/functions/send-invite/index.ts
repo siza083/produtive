@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
     const inviteLink = `${supabaseUrl.replace('//', '//').replace('https:', 'https:')}/auth/v1/verify?type=invite&token=${team_id}&redirect_to=${encodeURIComponent('https://produtive.app/join-team')}`;
 
     const emailResponse = await resend.emails.send({
-      from: "Produtive <onboarding@resend.dev>",
+      from: "Produtive <noreply@yourdomain.com>",
       to: [invited_email],
       subject: `Convite para participar da equipe "${team_name}"`,
       html: `
@@ -84,7 +84,19 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email response:", emailResponse);
+
+    // Check if there's an error in the Resend response
+    if (emailResponse.error) {
+      console.error("Resend error:", emailResponse.error);
+      
+      // Check for domain verification error
+      if (emailResponse.error.message && emailResponse.error.message.includes('verify a domain')) {
+        throw new Error('DOMAIN_NOT_VERIFIED');
+      }
+      
+      throw new Error(`Email service error: ${emailResponse.error.message || 'Unknown error'}`);
+    }
 
     return new Response(JSON.stringify({ success: true, emailResponse }), {
       status: 200,
@@ -95,6 +107,21 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("Error in send-invite function:", error);
+    
+    // Check for specific domain verification error
+    if (error.message === 'DOMAIN_NOT_VERIFIED') {
+      return new Response(
+        JSON.stringify({ 
+          error: "DOMAIN_NOT_VERIFIED",
+          message: "Para enviar convites, é necessário verificar um domínio no Resend. Acesse https://resend.com/domains para configurar." 
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    
     // Generic error response to prevent information disclosure
     return new Response(
       JSON.stringify({ error: "Unable to send invitation. Please try again." }),
