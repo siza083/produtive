@@ -18,8 +18,6 @@ import { Resend } from 'npm:resend@4.0.0'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { TeamInviteEmail } from './_templates/team-invite.tsx'
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
-
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -56,6 +54,9 @@ Deno.serve(async (req) => {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Inicializar Resend com a chave obtida
+    const resend = new Resend(RESEND_API_KEY);
 
     // Client com JWT do chamador → respeita RLS
     const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
