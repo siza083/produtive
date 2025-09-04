@@ -168,20 +168,18 @@ export function useDashboardData() {
         .from('subtasks')
         .select(`
           *,
-          task:tasks!subtasks_task_id_fkey(
+          task:tasks(
             id,
             title,
-            team:teams!tasks_team_id_fkey(
+            team:teams(
               id,
               name,
-              team_members!team_members_team_id_fkey(user_id, status)
+              team_members(user_id, status)
             )
           ),
-          assignee:profiles!subtasks_assignee_id_fkey(name, photo_url)
+          assignee:profiles(name, photo_url)
         `)
         .or(`assignee_id.eq.${user.id},created_by.eq.${user.id}`)
-        .eq('task.team.team_members.user_id', user.id)
-        .eq('task.team.team_members.status', 'accepted')
         .is('deleted_at', null);
 
       console.log('Dashboard subtasks query result:', { subtasks, error });
@@ -191,7 +189,13 @@ export function useDashboardData() {
         throw error;
       }
 
-      const validSubtasks = subtasks || [];
+      // Filter subtasks to only include those from teams the user is part of
+      const validSubtasks = (subtasks || []).filter(subtask => {
+        if (!subtask.task?.team?.team_members) return false;
+        return subtask.task.team.team_members.some((member: any) => 
+          member.user_id === user.id && member.status === 'accepted'
+        );
+      });
 
       // Calculate metrics
       const todayTasks = validSubtasks.filter(s => 
@@ -557,7 +561,7 @@ export function useSubtasks(taskId?: string) {
         .from('subtasks')
         .select(`
           *,
-          assignee:profiles!subtasks_assignee_id_fkey(name, photo_url)
+          assignee:profiles(name, photo_url)
         `)
         .eq('task_id', taskId)
         .is('deleted_at', null)
