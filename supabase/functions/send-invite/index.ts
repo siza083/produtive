@@ -36,8 +36,9 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Generate invitation link - direct to join team page with invitation ID
-    const inviteLink = `${Deno.env.get('SITE_URL') || 'https://produtive.lovable.app'}/join-team?invitation=${team_id}&email=${encodeURIComponent(invited_email)}`;
+    // Generate invitation link - use current origin from request or fallback to sandbox URL
+    const origin = req.headers.get('origin') || 'https://b2fb113a-66f8-4b8e-857e-de3744bd5b6e.sandbox.lovable.dev';
+    const inviteLink = `${origin}/join-team?invitation=${team_id}&email=${encodeURIComponent(invited_email)}`;
 
     const emailResponse = await resend.emails.send({
       from: "Produtive <noreply@produtive.pro>",
