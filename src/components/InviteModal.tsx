@@ -24,13 +24,22 @@ export function InviteModal({ isOpen, onClose, team }: InviteModalProps) {
     e.preventDefault();
     if (!email.trim()) return;
 
+    console.log('🎯 Modal: Iniciando envio de convite...', { 
+      email: email.trim(), 
+      role, 
+      team_name: team.name,
+      team_id: team.id 
+    });
+
     try {
+      console.log('🔄 Modal: Chamando mutation...');
       await inviteTeamMember.mutateAsync({
         team_id: team.id,
         email: email.trim(),
         role
       });
       
+      console.log('🎉 Modal: Convite enviado com sucesso!');
       toast({
         title: "Convite enviado!",
         description: `Um convite foi enviado para ${email.trim()}.`
@@ -40,6 +49,7 @@ export function InviteModal({ isOpen, onClose, team }: InviteModalProps) {
       setRole('member');
       onClose();
     } catch (error) {
+      console.error('💥 Modal: Erro ao enviar convite:', error);
       toast({
         title: "Erro",
         description: "Não foi possível enviar o convite.",

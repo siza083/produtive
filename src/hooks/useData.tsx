@@ -689,28 +689,38 @@ export function useInviteTeamMember() {
       email: string; 
       role: 'member' | 'admin';
     }) => {
-      console.log('Enviando convite:', { team_id, email, role });
+      console.log('🚀 Iniciando processo de convite:', { team_id, email, role });
       
       // First, insert the team member invitation using RPC
-      const { error } = await supabase.rpc('create_team_invite', {
+      console.log('📧 Criando convite no banco...');
+      const { error: rpcError } = await supabase.rpc('create_team_invite', {
         p_team_id: team_id,
         p_invited_email: email,
         p_role: role
       });
 
-      if (error) {
-        console.error('Erro ao criar convite:', error);
-        throw error;
+      if (rpcError) {
+        console.error('❌ Erro ao criar convite:', rpcError);
+        throw rpcError;
       }
       
+      console.log('✅ Convite criado no banco com sucesso');
+      
       // Get team name for the email
-      const { data: teamData } = await supabase
+      console.log('🏢 Buscando dados da equipe...');
+      const { data: teamData, error: teamError } = await supabase
         .from('teams')
         .select('name')
         .eq('id', team_id)
         .single();
 
+      if (teamError) {
+        console.error('❌ Erro ao buscar dados da equipe:', teamError);
+        // Continue mesmo com erro para não bloquear o processo
+      }
+
       // Send invitation email
+      console.log('📬 Enviando email de convite...');
       const { error: emailError } = await supabase.functions.invoke('send-invite', {
         body: {
           team_id,
@@ -722,15 +732,21 @@ export function useInviteTeamMember() {
       });
 
       if (emailError) {
-        console.error('Erro ao enviar email:', emailError);
+        console.error('❌ Erro ao enviar email:', emailError);
         // Not throwing here as the invitation was created successfully
-        // The user will still be able to join manually
+        console.log('⚠️ Email não enviado, mas convite foi criado no banco');
+      } else {
+        console.log('✅ Email enviado com sucesso');
       }
       
-      console.log('Convite enviado com sucesso');
+      console.log('🎉 Processo de convite finalizado');
     },
     onSuccess: () => {
+      console.log('🔄 Invalidando cache das equipes...');
       queryClient.invalidateQueries({ queryKey: ['teams'] });
+    },
+    onError: (error) => {
+      console.error('💥 Erro geral no processo de convite:', error);
     }
   });
 }
