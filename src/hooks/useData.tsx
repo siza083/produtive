@@ -686,6 +686,40 @@ export function useUpdateSubtask() {
   });
 }
 
+export function useInviteTeamMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ team_id, email, role }: { 
+      team_id: string; 
+      email: string; 
+      role: 'member' | 'admin';
+    }) => {
+      console.log('Enviando convite:', { team_id, email, role });
+      
+      const { error } = await supabase
+        .from('team_members')
+        .insert({
+          team_id,
+          user_id: '', // Será preenchido quando o usuário aceitar o convite
+          invited_email: email,
+          role,
+          status: 'pending'
+        });
+
+      if (error) {
+        console.error('Erro ao enviar convite:', error);
+        throw error;
+      }
+      
+      console.log('Convite enviado com sucesso');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+    }
+  });
+}
+
 export function useDeleteSubtask() {
   const queryClient = useQueryClient();
 

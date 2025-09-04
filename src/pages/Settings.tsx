@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { InviteModal } from '@/components/InviteModal';
 import { CheckSquare, Settings, Bell, LogOut, User, Users, Mail, Globe, Palette, Shield, UserPlus, Crown, UserX, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -30,6 +31,10 @@ export default function SettingsPage() {
   // Team creation states
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
+  
+  // Invite modal states
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<any>(null);
 
   useEffect(() => {
     if (profile) {
@@ -72,6 +77,11 @@ export default function SettingsPage() {
         variant: "destructive"
       });
     }
+  };
+
+  const handleInviteClick = (team: any) => {
+    setSelectedTeam(team);
+    setIsInviteModalOpen(true);
   };
 
   const timezones = [
@@ -241,7 +251,11 @@ export default function SettingsPage() {
                       
                       <div className="flex items-center gap-2">
                         {team.role === 'owner' && (
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleInviteClick(team)}
+                          >
                             <UserPlus className="h-4 w-4 mr-2" />
                             Convidar
                           </Button>
@@ -378,6 +392,15 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+      
+      {/* Invite Modal */}
+      {selectedTeam && (
+        <InviteModal
+          isOpen={isInviteModalOpen}
+          onClose={() => setIsInviteModalOpen(false)}
+          team={selectedTeam}
+        />
+      )}
     </div>
   );
 }
