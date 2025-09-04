@@ -36,11 +36,11 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Generate invitation link (you can customize this URL)
-    const inviteLink = `${supabaseUrl.replace('//', '//').replace('https:', 'https:')}/auth/v1/verify?type=invite&token=${team_id}&redirect_to=${encodeURIComponent('https://produtive.app/join-team')}`;
+    // Generate invitation link - direct to join team page with invitation ID
+    const inviteLink = `${Deno.env.get('SITE_URL') || 'https://produtive.lovable.app'}/join-team?invitation=${team_id}&email=${encodeURIComponent(invited_email)}`;
 
     const emailResponse = await resend.emails.send({
-      from: "Produtive <noreply@yourdomain.com>",
+      from: "Produtive <onboarding@resend.dev>",
       to: [invited_email],
       subject: `Convite para participar da equipe "${team_name}"`,
       html: `
