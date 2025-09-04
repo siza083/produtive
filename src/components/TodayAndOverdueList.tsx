@@ -118,7 +118,7 @@ export function TodayAndOverdueList() {
                 <Calendar className="h-3 w-3" />
               )}
               <span className={isOverdue ? 'text-red-500' : ''}>
-                {isOverdue ? `Venceu ${dayjs(task.due_date).format('DD/MM')}` : 'Hoje'}
+                {isOverdue ? `Venceu ${dayjs(task.due_date + 'T00:00:00').format('DD/MM')}` : 'Hoje'}
               </span>
             </div>
             

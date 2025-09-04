@@ -424,11 +424,11 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                       
                       {(subtask.due_date || subtask.assignee) && (
                         <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                          {subtask.due_date && (
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="h-3 w-3" />
-                              {format(new Date(subtask.due_date), 'dd/MM/yyyy', { locale: ptBR })}
-                            </div>
+                           {subtask.due_date && (
+                             <div className="flex items-center gap-1">
+                               <CalendarIcon className="h-3 w-3" />
+                               {format(new Date(subtask.due_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
+                             </div>
                           )}
                           {subtask.assignee && (
                             <div className="flex items-center gap-1">
