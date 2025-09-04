@@ -12,7 +12,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus, CalendarIcon, User, Edit, Trash2, CheckSquare, Circle } from 'lucide-react';
-import { useCreateTask, useUpdateTask, useDeleteTask, useSubtasks, useCreateSubtask, useUpdateSubtask, useDeleteSubtask, useToggleSubtaskStatus, type Team } from '@/hooks/useData';
+import { useCreateTask, useUpdateTask, useDeleteTask, useSubtasks, useCreateSubtask, useUpdateSubtask, useDeleteSubtask, useToggleSubtaskStatus, useTeamMembers, type Team } from '@/hooks/useData';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -46,6 +47,8 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
   const updateSubtask = useUpdateSubtask();
   const deleteSubtask = useDeleteSubtask();
   const toggleSubtaskStatus = useToggleSubtaskStatus();
+  const { user } = useAuth();
+  const { data: teamMembers } = useTeamMembers(task?.team_id);
   const { toast } = useToast();
 
   const isEditing = !!task;
@@ -365,7 +368,31 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Sem responsável</SelectItem>
-                          {/* TODO: Add team members */}
+                          {user && (
+                            <SelectItem value={user.id}>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarFallback className="text-xs">
+                                    {user.email?.charAt(0).toUpperCase() || '?'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>Eu mesmo</span>
+                              </div>
+                            </SelectItem>
+                          )}
+                          {teamMembers?.filter(member => member.user_id !== user?.id).map((member) => (
+                            <SelectItem key={member.user_id} value={member.user_id}>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src={member.photo_url || undefined} />
+                                  <AvatarFallback className="text-xs">
+                                    {member.name?.charAt(0).toUpperCase() || '?'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{member.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

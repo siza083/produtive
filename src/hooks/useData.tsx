@@ -678,6 +678,45 @@ export function useUpdateSubtask() {
   });
 }
 
+// Hook para buscar membros de uma equipe
+export function useTeamMembers(teamId?: string) {
+  return useQuery({
+    queryKey: ['team-members', teamId],
+    queryFn: async () => {
+      if (!teamId) return [];
+
+      const { data: members, error } = await supabase
+        .from('team_members')
+        .select('user_id, role, status')
+        .eq('team_id', teamId)
+        .eq('status', 'accepted');
+
+      if (error) throw error;
+      
+      // Get profiles separately for each member
+      const membersWithProfiles = await Promise.all(
+        (members || []).map(async (member) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name, photo_url')
+            .eq('user_id', member.user_id)
+            .single();
+          
+          return {
+            user_id: member.user_id,
+            role: member.role,
+            name: profile?.name || 'Usuário',
+            photo_url: profile?.photo_url
+          };
+        })
+      );
+      
+      return membersWithProfiles;
+    },
+    enabled: !!teamId
+  });
+}
+
 export function useInviteTeamMember() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
