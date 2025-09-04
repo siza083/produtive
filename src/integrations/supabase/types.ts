@@ -233,6 +233,10 @@ export type Database = {
         Args: { team_uuid: string; user_uuid: string }
         Returns: boolean
       }
+      debug_auth_uid: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
