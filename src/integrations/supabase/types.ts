@@ -173,6 +173,7 @@ export type Database = {
           invited_by: string | null
           invited_email: string
           role: string
+          status: string | null
           team_id: string
         }
         Insert: {
@@ -183,6 +184,7 @@ export type Database = {
           invited_by?: string | null
           invited_email: string
           role?: string
+          status?: string | null
           team_id: string
         }
         Update: {
@@ -193,6 +195,7 @@ export type Database = {
           invited_by?: string | null
           invited_email?: string
           role?: string
+          status?: string | null
           team_id?: string
         }
         Relationships: []
