@@ -289,7 +289,14 @@ export function useCreateTeam() {
 
   return useMutation({
     mutationFn: async (data: { name: string }) => {
-      if (!user) throw new Error('Not authenticated');
+      console.log('Creating team - User:', user);
+      
+      if (!user) {
+        console.error('User not authenticated');
+        throw new Error('Not authenticated');
+      }
+
+      console.log('Inserting team with data:', { name: data.name, created_by: user.id });
 
       const { data: team, error } = await supabase
         .from('teams')
@@ -300,7 +307,14 @@ export function useCreateTeam() {
         .select()
         .single();
 
-      if (error) throw error;
+      console.log('Team insert result:', { team, error });
+
+      if (error) {
+        console.error('Team insert error:', error);
+        throw error;
+      }
+
+      console.log('Adding user as team owner:', { team_id: team.id, user_id: user.id });
 
       // Add user as owner
       const { error: memberError } = await supabase
@@ -312,7 +326,12 @@ export function useCreateTeam() {
           status: 'accepted'
         });
 
-      if (memberError) throw memberError;
+      console.log('Team member insert result:', { memberError });
+
+      if (memberError) {
+        console.error('Team member insert error:', memberError);
+        throw memberError;
+      }
       return team;
     },
     onSuccess: () => {
