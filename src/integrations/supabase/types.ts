@@ -169,6 +169,7 @@ export type Database = {
           created_at: string | null
           expires_at: string | null
           id: string
+          invite_token: string | null
           invited_by: string | null
           invited_email: string
           role: string
@@ -178,6 +179,7 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          invite_token?: string | null
           invited_by?: string | null
           invited_email: string
           role?: string
@@ -187,6 +189,7 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          invite_token?: string | null
           invited_by?: string | null
           invited_email?: string
           role?: string
@@ -258,6 +261,10 @@ export type Database = {
       accept_team_invitation: {
         Args: { p_invitation_id: string }
         Returns: undefined
+      }
+      accept_team_invite_by_token: {
+        Args: { p_token: string }
+        Returns: string
       }
       check_team_admin: {
         Args: { team_uuid: string; user_uuid: string }

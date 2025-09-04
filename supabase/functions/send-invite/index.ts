@@ -36,9 +36,28 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Generate invitation link - use the correct app domain
+    // Create or get existing invitation
+    const { data: invitation, error: inviteError } = await supabase
+      .from('team_invitations')
+      .upsert({
+        team_id,
+        invited_email,
+        role,
+        invited_by: 'system' // Placeholder since we can't get current user in this context
+      }, {
+        onConflict: 'team_id,invited_email'
+      })
+      .select('invite_token')
+      .single();
+
+    if (inviteError || !invitation) {
+      console.error('Error creating invitation:', inviteError);
+      throw new Error('Failed to create invitation');
+    }
+
+    // Generate invitation link using token
     const baseUrl = 'https://b2fb113a-66f8-4b8e-857e-de3744bd5b6e.sandbox.lovable.dev';
-    const inviteLink = `${baseUrl}/join-team?invitation=${team_id}&email=${encodeURIComponent(invited_email)}`;
+    const inviteLink = `${baseUrl}/accept-invite?token=${invitation.invite_token}`;
     
     console.log('Generated invite link:', inviteLink);
 
