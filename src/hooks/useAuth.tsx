@@ -24,30 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
-        // Create profile if user signs up and doesn't have one
-        if (session?.user && event === 'SIGNED_IN') {
-          setTimeout(async () => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-            
-            if (!profile) {
-              await supabase.from('profiles').insert({
-                user_id: session.user.id,
-                name: session.user.user_metadata?.name || session.user.email?.split('@')[0],
-                timezone: 'America/Sao_Paulo',
-                theme: 'system'
-              });
-            }
-          }, 0);
-        }
-        
         setLoading(false);
       }
     );
