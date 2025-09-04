@@ -119,8 +119,8 @@ export function useTasks(teamId?: string) {
         .from('tasks')
         .select(`
           *,
-          team:teams(id, name),
-          subtasks(id, status, deleted_at)
+          team:teams!fk_tasks_team(id, name),
+          subtasks!fk_subtasks_task(id, status, deleted_at)
         `)
         .is('deleted_at', null);
 
@@ -161,23 +161,23 @@ export function useDashboardData() {
     queryFn: async () => {
       if (!user) return null;
 
-      // Get all user's subtasks with proper joins
+      // Get all user's subtasks (assignee OR created by user) with proper joins
       const { data: subtasks, error } = await supabase
         .from('subtasks')
         .select(`
           *,
-          task:tasks!inner(
+          task:tasks!fk_subtasks_task(
             id,
             title,
-            team:teams!inner(
+            team:teams!fk_tasks_team(
               id,
               name,
-              team_members!inner(user_id, status)
+              team_members!fk_team_members_team(user_id, status)
             )
           ),
-          assignee:profiles(name, photo_url)
+          assignee:profiles!fk_subtasks_assignee(name, photo_url)
         `)
-        .eq('assignee_id', user.id)
+        .or(`assignee_id.eq.${user.id},created_by.eq.${user.id}`)
         .eq('task.team.team_members.user_id', user.id)
         .eq('task.team.team_members.status', 'accepted')
         .is('deleted_at', null);
@@ -355,6 +355,7 @@ export function useToggleSubtaskStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks'] });
     }
   });
 }
@@ -549,7 +550,7 @@ export function useSubtasks(taskId?: string) {
         .from('subtasks')
         .select(`
           *,
-          assignee:profiles(name, photo_url)
+          assignee:profiles!fk_subtasks_assignee(name, photo_url)
         `)
         .eq('task_id', taskId)
         .is('deleted_at', null)
