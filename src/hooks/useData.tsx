@@ -649,12 +649,19 @@ export function useUpdateSubtask() {
       due_date?: string; 
       assignee_id?: string;
     }) => {
+      console.log('Executando atualização de subtarefa:', { id, data });
+      
       const { error } = await supabase
         .from('subtasks')
         .update(data)
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro na atualização da subtarefa:', error);
+        throw error;
+      }
+      
+      console.log('Subtarefa atualizada com sucesso');
       
       // Get the task_id if not provided
       if (!task_id) {
@@ -669,6 +676,7 @@ export function useUpdateSubtask() {
       return { id, task_id };
     },
     onSuccess: (result) => {
+      console.log('Cache invalidado para task_id:', result?.task_id);
       if (result?.task_id) {
         queryClient.invalidateQueries({ queryKey: ['subtasks', result.task_id] });
       }

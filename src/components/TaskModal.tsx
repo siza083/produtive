@@ -121,14 +121,25 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
     e.preventDefault();
     if (!subtaskTitle.trim() || !task) return;
 
+    const formattedDueDate = subtaskDueDate ? dayjs(subtaskDueDate).format('YYYY-MM-DD') : undefined;
+    
+    console.log('Salvando subtarefa:', {
+      title: subtaskTitle.trim(),
+      description: subtaskDescription.trim() || undefined,
+      due_date: formattedDueDate,
+      assignee_id: subtaskAssignee || undefined,
+      isEditing: !!editingSubtask
+    });
+
     try {
       if (editingSubtask) {
+        console.log('Atualizando subtarefa ID:', editingSubtask.id);
         await updateSubtask.mutateAsync({
           id: editingSubtask.id,
           task_id: task.id,
           title: subtaskTitle.trim(),
           description: subtaskDescription.trim() || undefined,
-          due_date: subtaskDueDate ? dayjs(subtaskDueDate).format('YYYY-MM-DD') : undefined,
+          due_date: formattedDueDate,
           assignee_id: subtaskAssignee || undefined
         });
         toast({
@@ -140,7 +151,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
           task_id: task.id,
           title: subtaskTitle.trim(),
           description: subtaskDescription.trim() || undefined,
-          due_date: subtaskDueDate ? dayjs(subtaskDueDate).format('YYYY-MM-DD') : undefined,
+          due_date: formattedDueDate,
           assignee_id: subtaskAssignee || undefined
         });
         toast({
@@ -157,6 +168,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
       setIsSubtaskFormOpen(false);
       setEditingSubtask(null);
     } catch (error) {
+      console.error('Erro ao salvar subtarefa:', error);
       toast({
         title: "Erro",
         description: `Não foi possível ${editingSubtask ? 'atualizar' : 'criar'} a atividade.`,
