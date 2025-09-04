@@ -164,6 +164,36 @@ export type Database = {
           },
         ]
       }
+      team_invitations: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          invited_by: string | null
+          invited_email: string
+          role: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          invited_by?: string | null
+          invited_email: string
+          role?: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          invited_by?: string | null
+          invited_email?: string
+          role?: string
+          team_id?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           invited_email: string | null
@@ -225,6 +255,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_team_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: undefined
+      }
       check_team_admin: {
         Args: { team_uuid: string; user_uuid: string }
         Returns: boolean
