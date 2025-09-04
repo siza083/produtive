@@ -233,6 +233,10 @@ export type Database = {
         Args: { team_uuid: string; user_uuid: string }
         Returns: boolean
       }
+      create_team_invite: {
+        Args: { p_invited_email: string; p_role: string; p_team_id: string }
+        Returns: undefined
+      }
       debug_auth_uid: {
         Args: Record<PropertyKey, never>
         Returns: string

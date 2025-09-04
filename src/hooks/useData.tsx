@@ -691,16 +691,12 @@ export function useInviteTeamMember() {
     }) => {
       console.log('Enviando convite:', { team_id, email, role });
       
-      // First, insert the team member invitation
-      const { error } = await supabase
-        .from('team_members')
-        .insert({
-          team_id,
-          invited_email: email,
-          role,
-          status: 'pending'
-          // user_id será definido quando o convite for aceito
-        });
+      // First, insert the team member invitation using RPC
+      const { error } = await supabase.rpc('create_team_invite', {
+        p_team_id: team_id,
+        p_invited_email: email,
+        p_role: role
+      });
 
       if (error) {
         console.error('Erro ao criar convite:', error);
