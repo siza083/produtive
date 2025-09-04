@@ -34,8 +34,39 @@ const handler = async (req: Request): Promise<Response> => {
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Get authorization header from request
+    const authHeader = req.headers.get('Authorization');
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: {
+        headers: {
+          Authorization: authHeader || '',
+        },
+      },
+    });
 
+    // Get current user info
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    console.log('Current user:', user?.id);
+    console.log('User error:', userError);
+    
+    if (!user) {
+      console.error('No authenticated user found');
+      throw new Error('Authentication required');
+    }
+    
+    // Check if user is admin of the team
+    const { data: teamCheck, error: teamError } = await supabase
+      .rpc('check_team_admin', { team_uuid: team_id, user_uuid: user.id });
+    
+    console.log('Team admin check:', teamCheck, teamError);
+    
+    if (!teamCheck) {
+      console.error('User is not admin of team');
+      throw new Error('Only team admins can send invitations');
+    }
+    
     // Create or get existing invitation
     const { data: invitation, error: inviteError } = await supabase
       .from('team_invitations')
@@ -43,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
         team_id,
         invited_email: email,
         role,
-        invited_by: null
+        invited_by: user.id
       }, {
         onConflict: 'team_id,invited_email'
       })
@@ -52,6 +83,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (inviteError || !invitation) {
       console.error('Error creating invitation:', inviteError);
+      console.error('Invitation data:', invitation);
       throw new Error('Failed to create invitation');
     }
 
