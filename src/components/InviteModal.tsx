@@ -50,9 +50,10 @@ export function InviteModal({ isOpen, onClose, team }: InviteModalProps) {
       onClose();
     } catch (error) {
       console.error('💥 Modal: Erro ao enviar convite:', error);
+      // Generic error message to prevent email enumeration
       toast({
         title: "Erro",
-        description: "Não foi possível enviar o convite.",
+        description: "Não foi possível enviar o convite. Verifique o email e tente novamente.",
         variant: "destructive"
       });
     }
