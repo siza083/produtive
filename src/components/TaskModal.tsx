@@ -121,7 +121,9 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
     e.preventDefault();
     if (!subtaskTitle.trim() || !task) return;
 
-    const formattedDueDate = subtaskDueDate ? dayjs(subtaskDueDate).format('YYYY-MM-DD') : undefined;
+    // Garantir que a data seja tratada como data local (não UTC)
+    const formattedDueDate = subtaskDueDate ? 
+      `${subtaskDueDate.getFullYear()}-${String(subtaskDueDate.getMonth() + 1).padStart(2, '0')}-${String(subtaskDueDate.getDate()).padStart(2, '0')}` : undefined;
     
     console.log('Salvando subtarefa:', {
       title: subtaskTitle.trim(),
@@ -181,7 +183,8 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
     setEditingSubtask(subtask);
     setSubtaskTitle(subtask.title);
     setSubtaskDescription(subtask.description || '');
-    setSubtaskDueDate(subtask.due_date ? new Date(subtask.due_date) : undefined);
+    // Garantir que a data seja carregada corretamente (sem problemas de timezone)
+    setSubtaskDueDate(subtask.due_date ? new Date(subtask.due_date + 'T00:00:00') : undefined);
     setSubtaskAssignee(subtask.assignee_id || '');
     setIsSubtaskFormOpen(true);
   };
