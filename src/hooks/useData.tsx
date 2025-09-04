@@ -456,3 +456,173 @@ export function useCreateSampleData() {
     }
   });
 }
+
+export function useCreateTask() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { title: string; description?: string; team_id: string }) => {
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: task, error } = await supabase
+        .from('tasks')
+        .insert({
+          ...data,
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return task;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    }
+  });
+}
+
+export function useUpdateTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; title?: string; description?: string }) => {
+      const { error } = await supabase
+        .from('tasks')
+        .update(data)
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    }
+  });
+}
+
+export function useDeleteTask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    }
+  });
+}
+
+export function useSubtasks(taskId?: string) {
+  return useQuery({
+    queryKey: ['subtasks', taskId],
+    queryFn: async () => {
+      if (!taskId) return [];
+
+      const { data, error } = await supabase
+        .from('subtasks')
+        .select(`
+          *,
+          assignee:profiles(name, photo_url)
+        `)
+        .eq('task_id', taskId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return data as Subtask[];
+    },
+    enabled: !!taskId
+  });
+}
+
+export function useCreateSubtask() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { 
+      task_id: string; 
+      title: string; 
+      description?: string; 
+      due_date?: string; 
+      assignee_id?: string;
+    }) => {
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: subtask, error } = await supabase
+        .from('subtasks')
+        .insert({
+          ...data,
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return subtask;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    }
+  });
+}
+
+export function useUpdateSubtask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, task_id, ...data }: { 
+      id: string; 
+      task_id?: string;
+      title?: string; 
+      description?: string; 
+      due_date?: string; 
+      assignee_id?: string;
+    }) => {
+      const { error } = await supabase
+        .from('subtasks')
+        .update(data)
+        .eq('id', id);
+
+      if (error) throw error;
+      return { id, task_id };
+    },
+    onSuccess: (result) => {
+      if (result?.task_id) {
+        queryClient.invalidateQueries({ queryKey: ['subtasks', result.task_id] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    }
+  });
+}
+
+export function useDeleteSubtask() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('subtasks')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subtasks'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    }
+  });
+}

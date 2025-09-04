@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTeams, useCreateSampleData } from '@/hooks/useData';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const { data: teams, isLoading: teamsLoading } = useTeams();
   const createSampleData = useCreateSampleData();
   const { toast } = useToast();
@@ -39,16 +41,33 @@ export default function Dashboard() {
       {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckSquare className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-primary">Produtive</h1>
+          <div className="flex items-center gap-6">
+            <div 
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() => navigate('/')}
+            >
+              <CheckSquare className="h-6 w-6 text-primary" />
+              <h1 className="text-xl font-bold text-primary">Produtive</h1>
+            </div>
+            
+            <nav className="flex items-center gap-4">
+              <Button variant="default">
+                Dashboard
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/tasks')}
+              >
+                Tarefas
+              </Button>
+            </nav>
           </div>
           
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon">
               <Bell className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
               <Settings className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" onClick={signOut}>
