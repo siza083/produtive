@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       .from(TABLE)
       .insert({ team_id: teamId, invited_email: email, role, status: "pending" })
       .select("invite_token")
-      .single();
+      .maybeSingle();
 
     if (insErr) {
       console.error(`${TABLE} insert error:`, insErr);
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const inviteLink = `${APP_URL}/invite/accept?token=${pending.invite_token}`;
+    const inviteLink = `${APP_URL}/accept-invite?token=${pending.invite_token}`;
 
     // 2) Enviar e-mail via Resend
     const res = await fetch("https://api.resend.com/emails", {
