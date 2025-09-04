@@ -687,31 +687,26 @@ export function useTeamMembers(teamId?: string) {
 
       const { data: members, error } = await supabase
         .from('team_members')
-        .select('user_id, role, status')
+        .select(`
+          user_id,
+          role,
+          status,
+          joined_at,
+          profiles:user_id (
+            name,
+            photo_url
+          )
+        `)
         .eq('team_id', teamId)
         .eq('status', 'accepted');
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao buscar membros da equipe:', error);
+        throw error;
+      }
       
-      // Get profiles separately for each member
-      const membersWithProfiles = await Promise.all(
-        (members || []).map(async (member) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('name, photo_url')
-            .eq('user_id', member.user_id)
-            .single();
-          
-          return {
-            user_id: member.user_id,
-            role: member.role,
-            name: profile?.name || 'Usuário',
-            photo_url: profile?.photo_url
-          };
-        })
-      );
-      
-      return membersWithProfiles;
+      console.log('✅ Membros da equipe carregados:', members);
+      return members;
     },
     enabled: !!teamId
   });

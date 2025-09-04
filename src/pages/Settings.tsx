@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile, useTeams, useCreateTeam } from '@/hooks/useData';
+import { useProfile, useTeams, useCreateTeam, useTeamMembers } from '@/hooks/useData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { InviteModal } from '@/components/InviteModal';
-import { CheckSquare, Settings, Bell, LogOut, User, Users, Mail, Globe, Palette, Shield, UserPlus, Crown, UserX, Plus } from 'lucide-react';
+import { TeamCard } from '@/components/TeamCard';
+import { CheckSquare, Settings, Bell, LogOut, User, Users, Mail, Globe, Palette, Shield, UserPlus, Crown, UserX, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function SettingsPage() {
   const { user, signOut, updateProfile } = useAuth();
@@ -35,6 +37,9 @@ export default function SettingsPage() {
   // Invite modal states
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<any>(null);
+  
+  // Team members states
+  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (profile) {
@@ -82,6 +87,18 @@ export default function SettingsPage() {
   const handleInviteClick = (team: any) => {
     setSelectedTeam(team);
     setIsInviteModalOpen(true);
+  };
+
+  const toggleTeamExpansion = (teamId: string) => {
+    setExpandedTeams(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(teamId)) {
+        newSet.delete(teamId);
+      } else {
+        newSet.add(teamId);
+      }
+      return newSet;
+    });
   };
 
   const timezones = [
@@ -229,47 +246,18 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {teams?.map((team) => (
-                    <div key={team.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarFallback>
-                            {team.name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h4 className="font-medium">{team.name}</h4>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={team.role === 'owner' ? 'default' : 'secondary'}>
-                              {team.role === 'owner' && <Crown className="h-3 w-3 mr-1" />}
-                              {team.role === 'owner' ? 'Proprietário' : 
-                               team.role === 'admin' ? 'Administrador' : 'Membro'}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {team.role === 'owner' && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleInviteClick(team)}
-                          >
-                            <UserPlus className="h-4 w-4 mr-2" />
-                            Convidar
-                          </Button>
-                        )}
-                        
-                        {team.role !== 'owner' && (
-                          <Button variant="outline" size="sm">
-                            <UserX className="h-4 w-4 mr-2" />
-                            Sair
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  {teams?.map((team) => {
+                    const isExpanded = expandedTeams.has(team.id);
+                    return (
+                      <TeamCard 
+                        key={team.id} 
+                        team={team} 
+                        isExpanded={isExpanded}
+                        onToggleExpansion={() => toggleTeamExpansion(team.id)}
+                        onInviteClick={() => handleInviteClick(team)}
+                      />
+                    );
+                  })}
 
                   {teams?.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
