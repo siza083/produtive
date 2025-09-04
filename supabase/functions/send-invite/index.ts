@@ -13,7 +13,7 @@ const corsHeaders = {
 interface InviteEmailRequest {
   team_id: string;
   team_name: string;
-  invited_email: string;
+  email: string;
   inviter_name: string;
   role: string;
 }
@@ -27,9 +27,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { team_id, team_name, invited_email, inviter_name, role }: InviteEmailRequest = await req.json();
+    const { team_id, team_name, email, inviter_name, role }: InviteEmailRequest = await req.json();
     
-    console.log('Sending invite email:', { team_id, team_name, invited_email, inviter_name, role });
+    console.log('Sending invite email:', { team_id, team_name, email, inviter_name, role });
 
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -41,9 +41,9 @@ const handler = async (req: Request): Promise<Response> => {
       .from('team_invitations')
       .upsert({
         team_id,
-        invited_email,
+        invited_email: email,
         role,
-        invited_by: 'system' // Placeholder since we can't get current user in this context
+        invited_by: null
       }, {
         onConflict: 'team_id,invited_email'
       })
@@ -62,8 +62,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Generated invite link:', inviteLink);
 
     const emailResponse = await resend.emails.send({
-      from: "Produtive <noreply@produtive.pro>",
-      to: [invited_email],
+      from: "Produtive <onboarding@resend.dev>",
+      to: [email],
       subject: `Convite para participar da equipe "${team_name}"`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
