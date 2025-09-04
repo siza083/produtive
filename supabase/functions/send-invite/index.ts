@@ -68,7 +68,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     // Create or get existing invitation
-    const { data: invitation, error: inviteError } = await supabase
+    let { data: invitation, error: inviteError } = await supabase
       .from('team_invitations')
       .upsert({
         team_id,
@@ -81,10 +81,29 @@ const handler = async (req: Request): Promise<Response> => {
       .select('invite_token')
       .single();
 
-    if (inviteError || !invitation) {
-      console.error('Error creating invitation:', inviteError);
-      console.error('Invitation data:', invitation);
-      throw new Error('Failed to create invitation');
+    if (inviteError) {
+      console.error('team_invitations upsert error:', inviteError); // log detalhado
+
+      // tentar reaproveitar convite pendente já existente
+      const { data: existing, error: selErr } = await supabase
+        .from('team_invitations')
+        .select('invite_token')
+        .eq('team_id', team_id)
+        .eq('invited_email', email)
+        .single();
+
+      if (selErr) console.error('team_invitations select existing error:', selErr);
+      invitation = existing ?? null;
+    }
+
+    if (!invitation) {
+      return new Response(JSON.stringify({ 
+        error: "Failed to create invitation", 
+        detail: inviteError 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     // Generate invitation link using token
