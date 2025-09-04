@@ -119,8 +119,8 @@ export function useTasks(teamId?: string) {
         .from('tasks')
         .select(`
           *,
-          team:teams!fk_tasks_team(id, name),
-          subtasks!fk_subtasks_task(id, status, deleted_at)
+          team:teams!tasks_team_id_fkey(id, name),
+          subtasks!subtasks_task_id_fkey(id, status, deleted_at)
         `)
         .is('deleted_at', null);
 
@@ -166,16 +166,16 @@ export function useDashboardData() {
         .from('subtasks')
         .select(`
           *,
-          task:tasks!fk_subtasks_task(
+          task:tasks!subtasks_task_id_fkey(
             id,
             title,
-            team:teams!fk_tasks_team(
+            team:teams!tasks_team_id_fkey(
               id,
               name,
-              team_members!fk_team_members_team(user_id, status)
+              team_members!team_members_team_id_fkey(user_id, status)
             )
           ),
-          assignee:profiles!fk_subtasks_assignee(name, photo_url)
+          assignee:profiles!subtasks_assignee_id_fkey(name, photo_url)
         `)
         .or(`assignee_id.eq.${user.id},created_by.eq.${user.id}`)
         .eq('task.team.team_members.user_id', user.id)
@@ -550,7 +550,7 @@ export function useSubtasks(taskId?: string) {
         .from('subtasks')
         .select(`
           *,
-          assignee:profiles!fk_subtasks_assignee(name, photo_url)
+          assignee:profiles!subtasks_assignee_id_fkey(name, photo_url)
         `)
         .eq('task_id', taskId)
         .is('deleted_at', null)
