@@ -1,0 +1,458 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
+import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+import isoWeek from 'dayjs/plugin/isoWeek';
+
+dayjs.extend(timezone);
+dayjs.extend(utc);
+dayjs.extend(weekOfYear);
+dayjs.extend(isoWeek);
+
+export interface Team {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  role?: 'owner' | 'admin' | 'member';
+  status?: 'pending' | 'accepted';
+}
+
+export interface Task {
+  id: string;
+  team_id: string;
+  title: string;
+  description?: string;
+  created_by: string;
+  created_at: string;
+  deleted_at?: string;
+  team?: Team;
+}
+
+export interface Subtask {
+  id: string;
+  task_id: string;
+  title: string;
+  description?: string;
+  due_date?: string;
+  assignee_id?: string;
+  status: 'open' | 'done';
+  completed_at?: string;
+  created_by: string;
+  created_at: string;
+  deleted_at?: string;
+  task?: Task;
+  assignee?: { name?: string; photo_url?: string };
+}
+
+export interface Profile {
+  user_id: string;
+  name?: string;
+  photo_url?: string;
+  timezone: string;
+  theme: 'light' | 'dark' | 'system';
+  created_at: string;
+}
+
+export function useProfile() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) throw error;
+      return data as Profile;
+    },
+    enabled: !!user
+  });
+}
+
+export function useTeams() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['teams', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('teams')
+        .select(`
+          *,
+          team_members!inner(role, status)
+        `)
+        .eq('team_members.user_id', user.id)
+        .eq('team_members.status', 'accepted');
+
+      if (error) throw error;
+      
+      return data.map(team => ({
+        ...team,
+        role: team.team_members[0]?.role,
+        status: team.team_members[0]?.status
+      })) as Team[];
+    },
+    enabled: !!user
+  });
+}
+
+export function useTasks(teamId?: string) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['tasks', teamId, user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      let query = supabase
+        .from('tasks')
+        .select(`
+          *,
+          team:teams(id, name),
+          subtasks(id, status, deleted_at)
+        `)
+        .is('deleted_at', null);
+
+      if (teamId) {
+        query = query.eq('team_id', teamId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      return data.map(task => ({
+        ...task,
+        team: task.team ? {
+          id: task.team.id,
+          name: task.team.name,
+          created_by: '',
+          created_at: ''
+        } : undefined,
+        openSubtasks: task.subtasks?.filter(s => s.status === 'open' && !s.deleted_at).length || 0,
+        totalSubtasks: task.subtasks?.filter(s => !s.deleted_at).length || 0
+      })) as any[];
+    },
+    enabled: !!user
+  });
+}
+
+export function useDashboardData() {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+  
+  const userTimezone = profile?.timezone || 'America/Sao_Paulo';
+  const today = dayjs().tz(userTimezone).format('YYYY-MM-DD');
+  const weekStart = dayjs().tz(userTimezone).startOf('isoWeek').format('YYYY-MM-DD');
+  const weekEnd = dayjs().tz(userTimezone).endOf('isoWeek').format('YYYY-MM-DD');
+
+  return useQuery({
+    queryKey: ['dashboard', user?.id, today, weekStart, weekEnd],
+    queryFn: async () => {
+      if (!user) return null;
+
+      // Get all user's subtasks with proper joins
+      const { data: subtasks, error } = await supabase
+        .from('subtasks')
+        .select(`
+          *,
+          task:tasks!inner(
+            id,
+            title,
+            team:teams!inner(
+              id,
+              name,
+              team_members!inner(user_id, status)
+            )
+          ),
+          assignee:profiles(name, photo_url)
+        `)
+        .eq('assignee_id', user.id)
+        .eq('task.team.team_members.user_id', user.id)
+        .eq('task.team.team_members.status', 'accepted')
+        .is('deleted_at', null);
+
+      if (error) throw error;
+
+      const validSubtasks = subtasks || [];
+
+      // Calculate metrics
+      const todayTasks = validSubtasks.filter(s => 
+        s.status === 'open' && s.due_date === today
+      ).length;
+
+      const overdueTasks = validSubtasks.filter(s => 
+        s.status === 'open' && s.due_date && s.due_date < today
+      ).length;
+
+      const weekTasks = validSubtasks.filter(s => 
+        s.due_date && s.due_date >= weekStart && s.due_date <= weekEnd
+      ).length;
+
+      const completedThisWeek = validSubtasks.filter(s => 
+        s.status === 'done' && s.completed_at && 
+        dayjs(s.completed_at).tz(userTimezone).format('YYYY-MM-DD') >= weekStart &&
+        dayjs(s.completed_at).tz(userTimezone).format('YYYY-MM-DD') <= weekEnd
+      ).length;
+
+      // Get tasks for the list (overdue + today)
+      const listTasks = validSubtasks.filter(s => 
+        s.status === 'open' && s.due_date && 
+        (s.due_date < today || s.due_date === today)
+      ).sort((a, b) => {
+        // Overdue first, then by date and title
+        const aOverdue = a.due_date! < today;
+        const bOverdue = b.due_date! < today;
+        
+        if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+        if (a.due_date !== b.due_date) return a.due_date!.localeCompare(b.due_date!);
+        return a.title.localeCompare(b.title);
+      });
+
+      // Generate chart data for weekdays (Mon-Fri)
+      const chartData = [];
+      for (let i = 0; i < 5; i++) {
+        const date = dayjs().tz(userTimezone).startOf('isoWeek').add(i, 'day');
+        const dateStr = date.format('YYYY-MM-DD');
+        const isToday = dateStr === today;
+        const isPast = dateStr < today;
+        
+        const completed = validSubtasks.filter(s => 
+          s.status === 'done' && s.completed_at &&
+          dayjs(s.completed_at).tz(userTimezone).format('YYYY-MM-DD') === dateStr
+        ).length;
+
+        let overdue = 0;
+        if (isPast) {
+          overdue = validSubtasks.filter(s => 
+            s.status === 'open' && s.due_date === dateStr
+          ).length;
+        } else if (isToday) {
+          overdue = validSubtasks.filter(s => 
+            s.status === 'open' && s.due_date === dateStr
+          ).length;
+        }
+
+        chartData.push({
+          day: date.format('ddd'),
+          date: dateStr,
+          completed,
+          overdue,
+          isToday,
+          isPast
+        });
+      }
+
+      return {
+        cards: {
+          today: todayTasks,
+          overdue: overdueTasks,
+          week: weekTasks,
+          completed: completedThisWeek
+        },
+        chartData,
+        listTasks: listTasks.map(task => ({
+          ...task,
+          task: task.task ? {
+            ...task.task,
+            team_id: task.task.team?.id || '',
+            created_by: '',
+            created_at: '',
+            team: task.task.team ? {
+              id: task.task.team.id,
+              name: task.task.team.name,
+              created_by: '',
+              created_at: ''
+            } : undefined
+          } : undefined
+        })) as Subtask[]
+      };
+    },
+    enabled: !!user && !!profile,
+    refetchInterval: 30000 // Refresh every 30 seconds
+  });
+}
+
+export function useCreateTeam() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { name: string }) => {
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: team, error } = await supabase
+        .from('teams')
+        .insert({
+          name: data.name,
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add user as owner
+      const { error: memberError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: team.id,
+          user_id: user.id,
+          role: 'owner',
+          status: 'accepted'
+        });
+
+      if (memberError) throw memberError;
+      return team;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+    }
+  });
+}
+
+export function useToggleSubtaskStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'open' | 'done' }) => {
+      const { error } = await supabase
+        .from('subtasks')
+        .update({ status })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    }
+  });
+}
+
+export function useCreateSampleData() {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Not authenticated');
+      
+      const userTimezone = profile?.timezone || 'America/Sao_Paulo';
+      const today = dayjs().tz(userTimezone);
+      const weekStart = today.startOf('isoWeek').add(1, 'day'); // Monday
+
+      // 1) Create team
+      const { data: team, error: teamError } = await supabase
+        .from('teams')
+        .insert({
+          name: 'Equipe Produtive',
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (teamError) throw teamError;
+
+      // Add user as owner
+      const { error: memberError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: team.id,
+          user_id: user.id,
+          role: 'owner',
+          status: 'accepted'
+        });
+
+      if (memberError) throw memberError;
+
+      // 2) Create tasks
+      const { data: tasks, error: tasksError } = await supabase
+        .from('tasks')
+        .insert([
+          {
+            team_id: team.id,
+            title: 'Operação',
+            description: 'Tarefas operacionais do dia a dia',
+            created_by: user.id
+          },
+          {
+            team_id: team.id,
+            title: 'Marketing',
+            description: 'Atividades de marketing e comunicação',
+            created_by: user.id
+          }
+        ])
+        .select();
+
+      if (tasksError) throw tasksError;
+
+      // 3) Create subtasks
+      const operacaoTask = tasks.find(t => t.title === 'Operação');
+      const marketingTask = tasks.find(t => t.title === 'Marketing');
+
+      if (operacaoTask && marketingTask) {
+        const { error: subtasksError } = await supabase
+          .from('subtasks')
+          .insert([
+            {
+              task_id: operacaoTask.id,
+              title: 'Revisar contratos',
+              description: 'Revisar contratos pendentes de aprovação',
+              assignee_id: user.id,
+              due_date: weekStart.format('YYYY-MM-DD'),
+              status: 'open',
+              created_by: user.id
+            },
+            {
+              task_id: operacaoTask.id,
+              title: 'Rodar conciliações',
+              description: 'Executar processo de conciliação bancária',
+              assignee_id: user.id,
+              due_date: today.subtract(1, 'day').format('YYYY-MM-DD'),
+              status: 'open',
+              created_by: user.id
+            },
+            {
+              task_id: marketingTask.id,
+              title: 'Aprovar criativos',
+              description: 'Revisar e aprovar materiais criativos',
+              assignee_id: user.id,
+              due_date: today.format('YYYY-MM-DD'),
+              status: 'open',
+              created_by: user.id
+            },
+            {
+              task_id: marketingTask.id,
+              title: 'Post do blog',
+              description: 'Escrever artigo sobre produtividade',
+              assignee_id: user.id,
+              due_date: today.subtract(2, 'day').format('YYYY-MM-DD'),
+              status: 'done',
+              created_by: user.id
+            }
+          ]);
+
+        if (subtasksError) throw subtasksError;
+      }
+
+      return team;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    }
+  });
+}

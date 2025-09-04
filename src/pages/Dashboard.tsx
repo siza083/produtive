@@ -1,17 +1,38 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useTeams, useCreateSampleData } from '@/hooks/useData';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckSquare, Calendar, Clock, TrendingUp, Settings, Bell, LogOut } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { CheckSquare, Settings, Bell, LogOut, Plus, Users } from 'lucide-react';
+import { DashboardCards } from '@/components/DashboardCards';
+import { WeekBarChart } from '@/components/WeekBarChart';
+import { TodayAndOverdueList } from '@/components/TodayAndOverdueList';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+  const { data: teams, isLoading: teamsLoading } = useTeams();
+  const createSampleData = useCreateSampleData();
+  const { toast } = useToast();
 
-  useEffect(() => {
-    // TODO: Fetch user profile and dashboard data
-    // This will be implemented when we create the dashboard components
-  }, [user]);
+  const handleCreateSampleData = async () => {
+    try {
+      await createSampleData.mutateAsync();
+      
+      toast({
+        title: "Dados de exemplo criados!",
+        description: "Sua equipe e atividades de exemplo foram criadas com sucesso."
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar os dados de exemplo.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const hasTeams = teams && teams.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,76 +69,46 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Para Hoje</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">
-                atividades para hoje
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">
-                atividades atrasadas
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Da Semana</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">
-                atividades desta semana
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Concluídas</CardTitle>
-              <CheckSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">
-                concluídas esta semana
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Empty State */}
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <CheckSquare className="h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhuma atividade encontrada</h3>
-            <p className="text-muted-foreground text-center mb-6">
-              Você ainda não tem nenhuma equipe ou atividade.<br />
-              Comece criando sua primeira equipe!
-            </p>
-            <div className="flex gap-4">
-              <Button>Criar Equipe</Button>
-              <Button variant="outline">Popular com Exemplos</Button>
+        {hasTeams ? (
+          <>
+            {/* Dashboard Content */}
+            <div className="space-y-8">
+              <DashboardCards />
+              
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                <WeekBarChart />
+                <div className="space-y-6">
+                  <TodayAndOverdueList />
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </>
+        ) : (
+          /* Empty State */
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <Users className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Nenhuma equipe encontrada</h3>
+              <p className="text-muted-foreground text-center mb-6">
+                Você ainda não faz parte de nenhuma equipe.<br />
+                Comece criando sua primeira equipe ou sendo convidado para uma!
+              </p>
+              <div className="flex gap-4">
+                <Button onClick={() => {}} disabled={createSampleData.isPending}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Equipe
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleCreateSampleData}
+                  disabled={createSampleData.isPending}
+                >
+                  {createSampleData.isPending ? 'Criando...' : 'Popular com Exemplos'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
