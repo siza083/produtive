@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile, useTeams } from '@/hooks/useData';
+import { useProfile, useTeams, useCreateTeam } from '@/hooks/useData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { CheckSquare, Settings, Bell, LogOut, User, Users, Mail, Globe, Palette, Shield, UserPlus, Crown, UserX, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,12 +19,17 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
   const { data: teams } = useTeams();
+  const createTeam = useCreateTeam();
   const { toast } = useToast();
 
   // Profile form states
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
+  
+  // Team creation states
+  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
 
   useEffect(() => {
     if (profile) {
@@ -44,6 +50,27 @@ export default function SettingsPage() {
       });
     } catch (error) {
       // Error already handled in hook
+    }
+  };
+
+  const handleCreateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamName.trim()) return;
+
+    try {
+      await createTeam.mutateAsync({ name: newTeamName.trim() });
+      toast({
+        title: "Equipe criada!",
+        description: "A nova equipe foi criada com sucesso."
+      });
+      setNewTeamName('');
+      setIsCreateTeamOpen(false);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar a equipe.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -239,10 +266,54 @@ export default function SettingsPage() {
 
                   <Separator />
                   
-                  <Button variant="outline" className="w-full">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Criar Nova Equipe
-                  </Button>
+                  <Dialog open={isCreateTeamOpen} onOpenChange={setIsCreateTeamOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Criar Nova Equipe
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Criar Nova Equipe</DialogTitle>
+                        <DialogDescription>
+                          Digite o nome da nova equipe. Você será automaticamente definido como proprietário.
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <form onSubmit={handleCreateTeam} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="teamName">Nome da Equipe</Label>
+                          <Input
+                            id="teamName"
+                            value={newTeamName}
+                            onChange={(e) => setNewTeamName(e.target.value)}
+                            placeholder="Digite o nome da equipe"
+                            required
+                          />
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button 
+                            type="submit" 
+                            disabled={createTeam.isPending || !newTeamName.trim()}
+                          >
+                            {createTeam.isPending ? 'Criando...' : 'Criar Equipe'}
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={() => {
+                              setIsCreateTeamOpen(false);
+                              setNewTeamName('');
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </CardContent>
             </Card>
