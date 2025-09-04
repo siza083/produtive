@@ -687,16 +687,7 @@ export function useTeamMembers(teamId?: string) {
 
       const { data: members, error } = await supabase
         .from('team_members')
-        .select(`
-          user_id,
-          role,
-          status,
-          joined_at,
-          profiles:user_id (
-            name,
-            photo_url
-          )
-        `)
+        .select('user_id, role, status, joined_at')
         .eq('team_id', teamId)
         .eq('status', 'accepted');
 
@@ -705,8 +696,28 @@ export function useTeamMembers(teamId?: string) {
         throw error;
       }
       
-      console.log('✅ Membros da equipe carregados:', members);
-      return members;
+      // Get profiles separately for each member
+      const membersWithProfiles = await Promise.all(
+        (members || []).map(async (member) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name, photo_url')
+            .eq('user_id', member.user_id)
+            .single();
+          
+          return {
+            user_id: member.user_id,
+            role: member.role,
+            status: member.status,
+            joined_at: member.joined_at,
+            name: profile?.name || 'Usuário',
+            photo_url: profile?.photo_url
+          };
+        })
+      );
+      
+      console.log('✅ Membros da equipe carregados:', membersWithProfiles);
+      return membersWithProfiles;
     },
     enabled: !!teamId
   });

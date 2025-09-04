@@ -106,14 +106,14 @@ export function TeamCard({ team, isExpanded, onToggleExpansion, onInviteClick }:
                     <div key={member.user_id} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={member.profiles?.photo_url} />
+                          <AvatarImage src={member.photo_url} />
                           <AvatarFallback>
-                            {member.profiles?.name?.charAt(0).toUpperCase() || '?'}
+                            {member.name?.charAt(0).toUpperCase() || '?'}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="font-medium text-sm">
-                            {member.profiles?.name || 'Nome não informado'}
+                            {member.name || 'Nome não informado'}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Entrou em {new Date(member.joined_at).toLocaleDateString('pt-BR')}
