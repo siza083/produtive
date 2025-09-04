@@ -90,7 +90,7 @@ export function useTeams() {
         .from('teams')
         .select(`
           *,
-          team_members!inner(role, status)
+          team_members!team_members_team_id_fkey!inner(role, status)
         `)
         .eq('team_members.user_id', user.id)
         .eq('team_members.status', 'accepted');
