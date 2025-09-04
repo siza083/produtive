@@ -559,16 +559,30 @@ export function useSubtasks(taskId?: string) {
 
       const { data, error } = await supabase
         .from('subtasks')
-        .select(`
-          *,
-          assignee:profiles(name, photo_url)
-        `)
+        .select('*')
         .eq('task_id', taskId)
         .is('deleted_at', null)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return data as Subtask[];
+      
+      // Get assignee data separately if needed
+      const subtasksWithAssignees = await Promise.all(
+        (data || []).map(async (subtask) => {
+          if (subtask.assignee_id) {
+            const { data: assignee } = await supabase
+              .from('profiles')
+              .select('name, photo_url')
+              .eq('user_id', subtask.assignee_id)
+              .single();
+            
+            return { ...subtask, assignee };
+          }
+          return { ...subtask, assignee: null };
+        })
+      );
+
+      return subtasksWithAssignees as Subtask[];
     },
     enabled: !!taskId
   });
