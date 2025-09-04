@@ -696,10 +696,10 @@ export function useInviteTeamMember() {
         .from('team_members')
         .insert({
           team_id,
-          user_id: '', // Será preenchido quando o usuário aceitar o convite
           invited_email: email,
           role,
           status: 'pending'
+          // user_id será definido quando o convite for aceito
         });
 
       if (error) {
