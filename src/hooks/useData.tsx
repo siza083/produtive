@@ -649,19 +649,12 @@ export function useUpdateSubtask() {
       due_date?: string; 
       assignee_id?: string;
     }) => {
-      console.log('Executando atualização de subtarefa:', { id, data });
-      
       const { error } = await supabase
         .from('subtasks')
         .update(data)
         .eq('id', id);
 
-      if (error) {
-        console.error('Erro na atualização da subtarefa:', error);
-        throw error;
-      }
-      
-      console.log('Subtarefa atualizada com sucesso');
+      if (error) throw error;
       
       // Get the task_id if not provided
       if (!task_id) {
@@ -676,7 +669,6 @@ export function useUpdateSubtask() {
       return { id, task_id };
     },
     onSuccess: (result) => {
-      console.log('Cache invalidado para task_id:', result?.task_id);
       if (result?.task_id) {
         queryClient.invalidateQueries({ queryKey: ['subtasks', result.task_id] });
       }
@@ -687,6 +679,8 @@ export function useUpdateSubtask() {
 }
 
 export function useInviteTeamMember() {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -697,6 +691,7 @@ export function useInviteTeamMember() {
     }) => {
       console.log('Enviando convite:', { team_id, email, role });
       
+      // First, insert the team member invitation
       const { error } = await supabase
         .from('team_members')
         .insert({
@@ -708,8 +703,32 @@ export function useInviteTeamMember() {
         });
 
       if (error) {
-        console.error('Erro ao enviar convite:', error);
+        console.error('Erro ao criar convite:', error);
         throw error;
+      }
+      
+      // Get team name for the email
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('name')
+        .eq('id', team_id)
+        .single();
+
+      // Send invitation email
+      const { error: emailError } = await supabase.functions.invoke('send-invite', {
+        body: {
+          team_id,
+          team_name: teamData?.name || 'Equipe',
+          invited_email: email,
+          inviter_name: profile?.name || user?.email?.split('@')[0] || 'Um colega',
+          role
+        }
+      });
+
+      if (emailError) {
+        console.error('Erro ao enviar email:', emailError);
+        // Not throwing here as the invitation was created successfully
+        // The user will still be able to join manually
       }
       
       console.log('Convite enviado com sucesso');
