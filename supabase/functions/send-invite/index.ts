@@ -1,10 +1,10 @@
 
 // supabase/functions/send-invite/index.ts
-// Edge Function (Deno) para enviar convites via Resend
+// Edge Function (Deno) para enviar convites via Resend com React Email
 // - Valida entrada (teamId + email)
 // - Insere convite "pending" respeitando RLS (JWT do chamador)
 // - Reaproveita token existente em caso de unique_violation (23505)
-// - Envia e-mail com link: `${APP_URL}/invite/accept?token=...`
+// - Envia e-mail com template React Email: `${APP_URL}/accept-invite?token=...`
 //
 // Ajuste a tabela usada para convites definindo a env INVITES_TABLE
 //   - INVITES_TABLE = "team_invitations"  (padrão recomendado)
@@ -13,6 +13,12 @@
 // Requer envs: SUPABASE_URL, SUPABASE_ANON_KEY, APP_URL, RESEND_API_KEY
 //
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import React from 'npm:react@18.3.1'
+import { Resend } from 'npm:resend@4.0.0'
+import { renderAsync } from 'npm:@react-email/components@0.0.22'
+import { TeamInviteEmail } from './_templates/team-invite.tsx'
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -98,27 +104,44 @@ Deno.serve(async (req) => {
 
     const inviteLink = `${APP_URL}/accept-invite?token=${pending.invite_token}`;
 
-    // 2) Enviar e-mail via Resend
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: "Produtive <onboarding@resend.dev>", // PRODUÇÃO: usar domínio verificado
-        to: email,
-        subject: `Convite para ${teamName || "sua equipe"} — Produtive`,
-        html: `<div style="font-family:Inter,Arial,sans-serif">
-                <h2>Você foi convidado para o time ${teamName || "Produtive"}</h2>
-                <p>Clique no botão abaixo para aceitar o convite:</p>
-                <p><a href="${inviteLink}" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#111;color:#fff;text-decoration:none">Aceitar convite</a></p>
-                <p>Ou copie e cole no navegador: ${inviteLink}</p>
-              </div>`
-      }),
+    // 2) Buscar dados do convidante (opcional)
+    let inviterName = '';
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        const { data: inviterProfile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('user_id', user.id)
+          .single();
+        inviterName = inviterProfile?.name || '';
+      }
+    } catch (err) {
+      console.warn('Could not fetch inviter name:', err);
+    }
+
+    // 3) Renderizar template React Email
+    const html = await renderAsync(
+      React.createElement(TeamInviteEmail, {
+        teamName: teamName || "Produtive",
+        inviteLink,
+        inviterName,
+      })
+    );
+
+    // 4) Enviar e-mail via Resend com novo SDK
+    const { error: emailError } = await resend.emails.send({
+      from: "Produtive <onboarding@resend.dev>", // PRODUÇÃO: usar domínio verificado
+      to: [email],
+      subject: `Convite para ${teamName || "sua equipe"} — Produtive`,
+      html,
     });
 
-    const emailResp = await res.json();
-    if (!res.ok) throw new Error(JSON.stringify(emailResp));
+    if (emailError) {
+      throw new Error(`Resend error: ${JSON.stringify(emailError)}`);
+    }
 
-    return new Response(JSON.stringify({ ok: true, id: emailResp.id, inviteLink }), {
+    return new Response(JSON.stringify({ ok: true, inviteLink }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
