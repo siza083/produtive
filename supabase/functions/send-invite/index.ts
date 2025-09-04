@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
     const inviteLink = `${Deno.env.get('SITE_URL') || 'https://produtive.lovable.app'}/join-team?invitation=${team_id}&email=${encodeURIComponent(invited_email)}`;
 
     const emailResponse = await resend.emails.send({
-      from: "Produtive <onboarding@resend.dev>",
+      from: "Produtive <noreply@produtive.pro>",
       to: [invited_email],
       subject: `Convite para participar da equipe "${team_name}"`,
       html: `
