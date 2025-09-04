@@ -85,29 +85,36 @@ export function JoinTeam() {
 
     setIsLoading(true);
     try {
-      // Usar a função do banco para aceitar o convite
-      const { data: invites } = await supabase
+      // Buscar o convite específico usando team_id e email
+      const { data: invitation, error: inviteError } = await supabase
         .from('team_invitations')
         .select('id')
-        .eq('team_id', invitationId)
+        .eq('team_id', invitationId) // invitationId é na verdade o team_id
         .eq('invited_email', email)
-        .gt('expires_at', new Date().toISOString());
+        .gt('expires_at', new Date().toISOString())
+        .single();
 
-      if (!invites || invites.length === 0) {
+      if (inviteError || !invitation) {
+        console.error('Invitation lookup error:', inviteError);
         throw new Error('Convite não encontrado ou expirado');
       }
 
-      const { error } = await supabase.rpc('accept_team_invitation', {
-        p_invitation_id: invites[0].id
+      // Usar a função RPC para aceitar o convite com o ID real da invitation
+      const { error: acceptError } = await supabase.rpc('accept_team_invitation', {
+        p_invitation_id: invitation.id
       });
 
-      if (error) throw error;
+      if (acceptError) {
+        console.error('Accept invitation error:', acceptError);
+        throw acceptError;
+      }
 
       toast({
         title: 'Convite aceito!',
         description: `Você agora faz parte da equipe "${teamName}".`
       });
 
+      // Redirecionar para dashboard após sucesso
       navigate('/dashboard');
     } catch (error) {
       console.error('Error accepting invite:', error);
