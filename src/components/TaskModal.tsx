@@ -125,6 +125,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
       if (editingSubtask) {
         await updateSubtask.mutateAsync({
           id: editingSubtask.id,
+          task_id: task.id,
           title: subtaskTitle.trim(),
           description: subtaskDescription.trim() || undefined,
           due_date: subtaskDueDate ? dayjs(subtaskDueDate).format('YYYY-MM-DD') : undefined,

@@ -163,22 +163,10 @@ export function useDashboardData() {
 
       console.log('Dashboard query starting for user:', user.id);
 
-      // Get all user's subtasks (assignee OR created by user) with proper joins
+      // Get all user's subtasks
       const { data: subtasks, error } = await supabase
         .from('subtasks')
-        .select(`
-          *,
-          task:tasks(
-            id,
-            title,
-            team:teams(
-              id,
-              name,
-              team_members(user_id, status)
-            )
-          ),
-          assignee:profiles(name, photo_url)
-        `)
+        .select('*')
         .or(`assignee_id.eq.${user.id},created_by.eq.${user.id}`)
         .is('deleted_at', null);
 
@@ -189,10 +177,33 @@ export function useDashboardData() {
         throw error;
       }
 
+      // Get task and team data separately
+      const taskIds = [...new Set((subtasks || []).map(s => s.task_id))];
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select(`
+          id,
+          title,
+          team_id,
+          team:teams(
+            id,
+            name,
+            team_members(user_id, status)
+          )
+        `)
+        .in('id', taskIds);
+
+      // Create a map of tasks by ID
+      const tasksMap = new Map();
+      (tasks || []).forEach(task => {
+        tasksMap.set(task.id, task);
+      });
+
       // Filter subtasks to only include those from teams the user is part of
       const validSubtasks = (subtasks || []).filter(subtask => {
-        if (!subtask.task?.team?.team_members) return false;
-        return subtask.task.team.team_members.some((member: any) => 
+        const task = tasksMap.get(subtask.task_id);
+        if (!task?.team?.team_members) return false;
+        return task.team.team_members.some((member: any) => 
           member.user_id === user.id && member.status === 'accepted'
         );
       });
@@ -272,21 +283,25 @@ export function useDashboardData() {
           completed: completedThisWeek
         },
         chartData,
-        listTasks: listTasks.map(task => ({
-          ...task,
-          task: task.task ? {
-            ...task.task,
-            team_id: task.task.team?.id || '',
-            created_by: '',
-            created_at: '',
-            team: task.task.team ? {
-              id: task.task.team.id,
-              name: task.task.team.name,
+        listTasks: listTasks.map(subtask => {
+          const task = tasksMap.get(subtask.task_id);
+          return {
+            ...subtask,
+            task: task ? {
+              id: task.id,
+              title: task.title,
+              team_id: task.team_id,
               created_by: '',
-              created_at: ''
+              created_at: '',
+              team: task.team ? {
+                id: task.team.id,
+                name: task.team.name,
+                created_by: '',
+                created_at: ''
+              } : undefined
             } : undefined
-          } : undefined
-        })) as Subtask[]
+          };
+        }) as Subtask[]
       };
     },
     enabled: !!user && !!profile,
@@ -640,6 +655,17 @@ export function useUpdateSubtask() {
         .eq('id', id);
 
       if (error) throw error;
+      
+      // Get the task_id if not provided
+      if (!task_id) {
+        const { data: subtaskData } = await supabase
+          .from('subtasks')
+          .select('task_id')
+          .eq('id', id)
+          .single();
+        task_id = subtaskData?.task_id;
+      }
+      
       return { id, task_id };
     },
     onSuccess: (result) => {
