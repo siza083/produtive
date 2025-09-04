@@ -1,154 +1,136 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Resend } from "npm:resend@2.0.0";
 
-// supabase/functions/send-invite/index.ts
-// Edge Function (Deno) para enviar convites via Resend com React Email
-// - Valida entrada (teamId + email)
-// - Insere convite "pending" respeitando RLS (JWT do chamador)
-// - Reaproveita token existente em caso de unique_violation (23505)
-// - Envia e-mail com template React Email: `${APP_URL}/accept-invite?token=...`
-//
-// Ajuste a tabela usada para convites definindo a env INVITES_TABLE
-//   - INVITES_TABLE = "team_invitations"  (padrão recomendado)
-//   - ou "team_members" (se o projeto usar pending dentro de team_members)
-//
-// Requer envs: SUPABASE_URL, SUPABASE_ANON_KEY, APP_URL, RESEND_API_KEY
-//
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import React from 'npm:react@18.3.1'
-import { Resend } from 'npm:resend@4.0.0'
-import { renderAsync } from 'npm:@react-email/components@0.0.22'
-import { TeamInviteEmail } from './_templates/team-invite.tsx'
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-export const corsHeaders = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+interface InviteEmailRequest {
+  team_id: string;
+  team_name: string;
+  invited_email: string;
+  inviter_name: string;
+  role: string;
+}
+
+const handler = async (req: Request): Promise<Response> => {
+  console.log('Send invite function called');
+
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   try {
-    const body = await req.json().catch(() => ({}));
+    const { team_id, team_name, invited_email, inviter_name, role }: InviteEmailRequest = await req.json();
+    
+    console.log('Sending invite email:', { team_id, team_name, invited_email, inviter_name, role });
 
-    // Compat: aceita vários nomes de campo para e-mail e teamId
-    const teamId: string = body.teamId ?? body.team_id ?? "";
-    const emailRaw: string = body.invitedEmail ?? body.invited_email ?? body.toEmail ?? body.email ?? "";
-    const role: string = body.role ?? "member";
-    const teamName: string = body.teamName ?? body.team_name ?? "";
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const email = String(emailRaw).trim().toLowerCase();
+    // Generate invitation link - direct to join team page with invitation ID
+    const inviteLink = `${Deno.env.get('SITE_URL') || 'https://produtive.lovable.app'}/join-team?invitation=${team_id}&email=${encodeURIComponent(invited_email)}`;
 
-    if (!teamId || !email) {
-      return new Response(
-        JSON.stringify({ error: "Missing teamId or email", received: { teamId, emailRaw } }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const APP_URL = Deno.env.get("APP_URL")!;
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-
-    if (!APP_URL || !RESEND_API_KEY) {
-      return new Response(JSON.stringify({ error: "Missing APP_URL or RESEND_API_KEY" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Inicializar Resend com a chave obtida
-    const resend = new Resend(RESEND_API_KEY);
-
-    // Client com JWT do chamador → respeita RLS
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+    const emailResponse = await resend.emails.send({
+      from: "Produtive <noreply@produtive.pro>",
+      to: [invited_email],
+      subject: `Convite para participar da equipe "${team_name}"`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2563eb; margin: 0;">Produtive</h1>
+          </div>
+          
+          <h2 style="color: #1f2937; margin-bottom: 20px;">Você foi convidado para uma equipe!</h2>
+          
+          <p style="color: #4b5563; font-size: 16px; line-height: 1.5;">
+            Olá! <strong>${inviter_name}</strong> convidou você para participar da equipe 
+            <strong>"${team_name}"</strong> como <strong>${role === 'admin' ? 'Administrador' : 'Membro'}</strong>.
+          </p>
+          
+          <p style="color: #4b5563; font-size: 16px; line-height: 1.5;">
+            O Produtive é uma plataforma de gerenciamento de tarefas que ajuda equipes a 
+            organizarem suas atividades e colaborarem de forma eficiente.
+          </p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${inviteLink}" 
+               style="background-color: #2563eb; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 6px; font-weight: 600; 
+                      display: inline-block;">
+              Aceitar Convite
+            </a>
+          </div>
+          
+          <p style="color: #6b7280; font-size: 14px; line-height: 1.5;">
+            Se você não conseguir clicar no botão, copie e cole este link no seu navegador:<br>
+            <a href="${inviteLink}" style="color: #2563eb; word-break: break-all;">${inviteLink}</a>
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+          
+          <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+            Se você não esperava este convite, pode ignorar este email com segurança.
+          </p>
+        </div>
+      `,
     });
 
-    // Se precisar alternar, defina INVITES_TABLE no ambiente
-    const TABLE = Deno.env.get("INVITES_TABLE") ?? "team_invitations"; // ou "team_members"
+    console.log("Email response:", emailResponse);
 
-    // 1) Tenta INSERT (preferível ao upsert) → se UNIQUE, reaproveita
-    let { data: pending, error: insErr } = await supabase
-      .from(TABLE)
-      .insert({ team_id: teamId, invited_email: email, role, status: "pending" })
-      .select("invite_token")
-      .maybeSingle();
-
-    if (insErr) {
-      console.error(`${TABLE} insert error:`, insErr);
-
-      // 23505 = unique_violation → buscar convite pendente existente
-      if (insErr.code === "23505") {
-        const { data: existingArr, error: selErr } = await supabase
-          .from(TABLE)
-          .select("invite_token")
-          .eq("team_id", teamId)
-          .eq("invited_email", email)
-          .eq("status", "pending")
-          .limit(1); // sem .single()
-        if (selErr) console.error(`${TABLE} select pending error:`, selErr);
-        pending = Array.isArray(existingArr) ? existingArr[0] : null;
-      } else {
-        return new Response(
-          JSON.stringify({ error: "Failed to create invitation", detail: insErr }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    // Check if there's an error in the Resend response
+    if (emailResponse.error) {
+      console.error("Resend error:", emailResponse.error);
+      
+      // Check for domain verification error
+      if (emailResponse.error.message && emailResponse.error.message.includes('verify a domain')) {
+        throw new Error('DOMAIN_NOT_VERIFIED');
       }
+      
+      throw new Error(`Email service error: ${emailResponse.error.message || 'Unknown error'}`);
     }
 
-    if (!pending?.invite_token) {
+    return new Response(JSON.stringify({ success: true, emailResponse }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error in send-invite function:", error);
+    
+    // Check for specific domain verification error
+    if (error.message === 'DOMAIN_NOT_VERIFIED') {
       return new Response(
-        JSON.stringify({ error: "No pending invite available" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          error: "DOMAIN_NOT_VERIFIED",
+          message: "Para enviar convites, é necessário verificar um domínio no Resend. Acesse https://resend.com/domains para configurar." 
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
       );
     }
-
-    const inviteLink = `${APP_URL}/accept-invite?token=${pending.invite_token}`;
-
-    // 2) Buscar dados do convidante (opcional)
-    let inviterName = '';
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) {
-        const { data: inviterProfile } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('user_id', user.id)
-          .single();
-        inviterName = inviterProfile?.name || '';
+    
+    // Generic error response to prevent information disclosure
+    return new Response(
+      JSON.stringify({ error: "Unable to send invitation. Please try again." }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       }
-    } catch (err) {
-      console.warn('Could not fetch inviter name:', err);
-    }
-
-    // 3) Renderizar template React Email
-    const html = await renderAsync(
-      React.createElement(TeamInviteEmail, {
-        teamName: teamName || "Produtive",
-        inviteLink,
-        inviterName,
-      })
     );
-
-    // 4) Enviar e-mail via Resend com novo SDK
-    const { error: emailError } = await resend.emails.send({
-      from: "Produtive <onboarding@resend.dev>", // PRODUÇÃO: usar domínio verificado
-      to: [email],
-      subject: `Convite para ${teamName || "sua equipe"} — Produtive`,
-      html,
-    });
-
-    if (emailError) {
-      throw new Error(`Resend error: ${JSON.stringify(emailError)}`);
-    }
-
-    return new Response(JSON.stringify({ ok: true, inviteLink }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    console.error("Error in send-invite:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   }
-});
+};
+
+serve(handler);

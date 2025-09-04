@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,18 +18,12 @@ export default function Auth() {
   
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const returnUrl = searchParams.get('returnUrl');
 
   useEffect(() => {
     if (user) {
-      if (returnUrl) {
-        navigate(returnUrl, { replace: true });
-      } else {
-        navigate('/dashboard');
-      }
+      navigate('/dashboard');
     }
-  }, [user, navigate, returnUrl]);
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
