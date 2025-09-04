@@ -161,6 +161,8 @@ export function useDashboardData() {
     queryFn: async () => {
       if (!user) return null;
 
+      console.log('Dashboard query starting for user:', user.id);
+
       // Get all user's subtasks (assignee OR created by user) with proper joins
       const { data: subtasks, error } = await supabase
         .from('subtasks')
@@ -182,7 +184,12 @@ export function useDashboardData() {
         .eq('task.team.team_members.status', 'accepted')
         .is('deleted_at', null);
 
-      if (error) throw error;
+      console.log('Dashboard subtasks query result:', { subtasks, error });
+
+      if (error) {
+        console.error('Dashboard query error:', error);
+        throw error;
+      }
 
       const validSubtasks = subtasks || [];
 
