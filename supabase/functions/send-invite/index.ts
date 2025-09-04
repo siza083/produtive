@@ -90,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
         .select('invite_token')
         .eq('team_id', team_id)
         .eq('invited_email', email)
-        .single();
+        .maybeSingle();
 
       if (selErr) console.error('team_invitations select existing error:', selErr);
       invitation = existing ?? null;
