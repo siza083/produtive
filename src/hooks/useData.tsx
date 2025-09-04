@@ -740,8 +740,14 @@ export function useInviteTeamMember() {
 
       if (rpcError) {
         console.error('❌ Erro ao criar convite:', rpcError);
-        // Generic error to prevent email enumeration
-        throw new Error('Unable to send invitation. Please verify the email and try again.');
+        
+        // Handle specific known errors with appropriate messages
+        if (rpcError.message === 'User is already a member of this team') {
+          throw new Error('Este usuário já é membro da equipe.');
+        }
+        
+        // Generic error for other cases to prevent email enumeration
+        throw new Error('Não foi possível enviar o convite. Verifique o email e tente novamente.');
       }
       
       console.log('✅ Convite criado no banco com sucesso');
