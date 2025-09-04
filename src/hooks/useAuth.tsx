@@ -24,9 +24,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // If user just signed up, wait a moment for the trigger to create the profile
+        if (session?.user && event === 'SIGNED_IN') {
+          setTimeout(async () => {
+            // Verify the profile was created by the trigger
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
+            
+            // If profile wasn't created by trigger, create it manually as fallback
+            if (!profile) {
+              try {
+                await supabase.from('profiles').insert({
+                  user_id: session.user.id,
+                  name: session.user.user_metadata?.name || 
+                        session.user.user_metadata?.full_name || 
+                        session.user.email?.split('@')[0],
+                  timezone: 'America/Sao_Paulo',
+                  theme: 'system'
+                });
+              } catch (error) {
+                console.warn('Failed to create profile fallback:', error);
+              }
+            }
+          }, 1000);
+        }
+        
         setLoading(false);
       }
     );
@@ -54,17 +83,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error) {
+      const errorMessage = error.message.toLowerCase();
+      let description = "Ocorreu um erro ao criar sua conta. Tente novamente.";
+      
+      if (errorMessage.includes("user already registered")) {
+        description = "Este e-mail já está cadastrado. Tente fazer login.";
+      } else if (errorMessage.includes("password")) {
+        description = "A senha deve ter pelo menos 6 caracteres.";
+      } else if (errorMessage.includes("email")) {
+        description = "Por favor, verifique se o e-mail está correto.";
+      }
+      
       toast({
         title: "Erro no cadastro",
-        description: error.message === "User already registered" 
-          ? "Este e-mail já está cadastrado. Tente fazer login."
-          : "Ocorreu um erro ao criar sua conta. Tente novamente.",
+        description,
         variant: "destructive"
       });
     } else {
       toast({
         title: "Conta criada!",
-        description: "Verifique seu e-mail para confirmar a conta."
+        description: "Você já pode fazer login com suas credenciais."
       });
     }
 
@@ -78,11 +116,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error) {
+      const errorMessage = error.message.toLowerCase();
+      let description = "Ocorreu um erro ao fazer login. Tente novamente.";
+      
+      if (errorMessage.includes("invalid login credentials")) {
+        description = "E-mail ou senha incorretos.";
+      } else if (errorMessage.includes("email not confirmed")) {
+        description = "Por favor, confirme seu e-mail antes de fazer login.";
+      } else if (errorMessage.includes("too many requests")) {
+        description = "Muitas tentativas. Aguarde alguns minutos.";
+      }
+      
       toast({
         title: "Erro no login",
-        description: error.message === "Invalid login credentials"
-          ? "E-mail ou senha incorretos."
-          : "Ocorreu um erro ao fazer login. Tente novamente.",
+        description,
         variant: "destructive"
       });
     }
