@@ -88,12 +88,12 @@ export default function Tasks() {
         {/* Team Filter */}
         <div className="flex items-center gap-4 mb-6">
           <label className="text-sm font-medium">Filtrar por equipe:</label>
-          <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+          <Select value={selectedTeamId || "all"} onValueChange={(value) => setSelectedTeamId(value === "all" ? "" : value)}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Todas as equipes" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas as equipes</SelectItem>
+              <SelectItem value="all">Todas as equipes</SelectItem>
               {teams?.map((team) => (
                 <SelectItem key={team.id} value={team.id}>
                   {team.name}

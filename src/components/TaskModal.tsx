@@ -338,16 +338,17 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                             selected={subtaskDueDate}
                             onSelect={setSubtaskDueDate}
                             locale={ptBR}
+                            className="p-3 pointer-events-auto"
                           />
                         </PopoverContent>
                       </Popover>
                       
-                      <Select value={subtaskAssignee} onValueChange={setSubtaskAssignee}>
+                      <Select value={subtaskAssignee || "none"} onValueChange={(value) => setSubtaskAssignee(value === "none" ? "" : value)}>
                         <SelectTrigger>
                           <SelectValue placeholder="Responsável" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Sem responsável</SelectItem>
+                          <SelectItem value="none">Sem responsável</SelectItem>
                           {/* TODO: Add team members */}
                         </SelectContent>
                       </Select>
