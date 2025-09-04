@@ -31,9 +31,9 @@ Deno.serve(async (req) => {
 
     // Compat: aceita vários nomes de campo para e-mail e teamId
     const teamId: string = body.teamId ?? body.team_id ?? "";
-    const emailRaw: string = body.invitedEmail ?? body.toEmail ?? body.email ?? "";
+    const emailRaw: string = body.invitedEmail ?? body.invited_email ?? body.toEmail ?? body.email ?? "";
     const role: string = body.role ?? "member";
-    const teamName: string = body.teamName ?? "";
+    const teamName: string = body.teamName ?? body.team_name ?? "";
 
     const email = String(emailRaw).trim().toLowerCase();
 
