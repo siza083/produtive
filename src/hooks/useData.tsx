@@ -705,6 +705,15 @@ export function useTeamMembers(teamId?: string) {
             .eq('user_id', member.user_id)
             .single();
           
+          // Better name handling - use the actual name if available
+          let displayName = '';
+          if (profile?.name && profile.name.trim() !== '') {
+            displayName = profile.name.trim();
+          } else {
+            // If no name, show a more helpful message
+            displayName = 'Membro sem nome cadastrado';
+          }
+          
           return {
             user_id: member.user_id,
             role: member.role,
@@ -712,11 +721,11 @@ export function useTeamMembers(teamId?: string) {
             joined_at: member.joined_at,
             permissions: member.permissions || {},
             profile: {
-              name: profile?.name || 'Usuário',
+              name: displayName,
               photo_url: profile?.photo_url
             },
             // Keep backward compatibility
-            name: profile?.name || 'Usuário',
+            name: displayName,
             photo_url: profile?.photo_url
           };
         })
