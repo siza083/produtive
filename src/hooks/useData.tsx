@@ -163,11 +163,11 @@ export function useDashboardData() {
 
       console.log('Dashboard query starting for user:', user.id);
 
-      // Get all user's subtasks
+      // Get only subtasks assigned to the current user
       const { data: subtasks, error } = await supabase
         .from('subtasks')
         .select('*')
-        .or(`assignee_id.eq.${user.id},created_by.eq.${user.id}`)
+        .eq('assignee_id', user.id)
         .is('deleted_at', null);
 
       console.log('Dashboard subtasks query result:', { subtasks, error });
