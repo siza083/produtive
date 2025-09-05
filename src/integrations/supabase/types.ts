@@ -169,27 +169,33 @@ export type Database = {
           created_at: string | null
           expires_at: string | null
           id: string
+          invite_token: string | null
           invited_by: string | null
           invited_email: string
           role: string
+          status: string | null
           team_id: string
         }
         Insert: {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          invite_token?: string | null
           invited_by?: string | null
           invited_email: string
           role?: string
+          status?: string | null
           team_id: string
         }
         Update: {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          invite_token?: string | null
           invited_by?: string | null
           invited_email?: string
           role?: string
+          status?: string | null
           team_id?: string
         }
         Relationships: []
@@ -198,6 +204,7 @@ export type Database = {
         Row: {
           invited_email: string | null
           joined_at: string | null
+          permissions: Json
           role: string
           status: string
           team_id: string
@@ -206,6 +213,7 @@ export type Database = {
         Insert: {
           invited_email?: string | null
           joined_at?: string | null
+          permissions?: Json
           role?: string
           status?: string
           team_id: string
@@ -214,6 +222,7 @@ export type Database = {
         Update: {
           invited_email?: string | null
           joined_at?: string | null
+          permissions?: Json
           role?: string
           status?: string
           team_id?: string
@@ -259,6 +268,19 @@ export type Database = {
         Args: { p_invitation_id: string }
         Returns: undefined
       }
+      accept_team_invite_by_token: {
+        Args: { p_token: string }
+        Returns: string
+      }
+      add_member_by_email: {
+        Args: {
+          p_email: string
+          p_permissions?: Json
+          p_role?: string
+          p_team: string
+        }
+        Returns: string
+      }
       check_team_admin: {
         Args: { team_uuid: string; user_uuid: string }
         Returns: boolean
@@ -274,6 +296,19 @@ export type Database = {
       debug_auth_uid: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      remove_member: {
+        Args: { p_team: string; p_user: string }
+        Returns: undefined
+      }
+      update_member_access: {
+        Args: {
+          p_permissions?: Json
+          p_role?: string
+          p_team: string
+          p_user: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

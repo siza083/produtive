@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { InviteModal } from '@/components/InviteModal';
+
 import { TeamCard } from '@/components/TeamCard';
 import { CheckSquare, Settings, Bell, LogOut, User, Users, Mail, Globe, Palette, Shield, UserPlus, Crown, UserX, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -34,9 +34,6 @@ export default function SettingsPage() {
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   
-  // Invite modal states
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<any>(null);
   
   // Team members states
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
@@ -84,10 +81,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleInviteClick = (team: any) => {
-    setSelectedTeam(team);
-    setIsInviteModalOpen(true);
-  };
 
   const toggleTeamExpansion = (teamId: string) => {
     setExpandedTeams(prev => {
@@ -249,13 +242,12 @@ export default function SettingsPage() {
                   {teams?.map((team) => {
                     const isExpanded = expandedTeams.has(team.id);
                     return (
-                      <TeamCard 
-                        key={team.id} 
-                        team={team} 
-                        isExpanded={isExpanded}
-                        onToggleExpansion={() => toggleTeamExpansion(team.id)}
-                        onInviteClick={() => handleInviteClick(team)}
-                      />
+                       <TeamCard 
+                         key={team.id} 
+                         team={team} 
+                         isExpanded={isExpanded}
+                         onToggleExpansion={() => toggleTeamExpansion(team.id)}
+                       />
                     );
                   })}
 
@@ -380,15 +372,6 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-      
-      {/* Invite Modal */}
-      {selectedTeam && (
-        <InviteModal
-          isOpen={isInviteModalOpen}
-          onClose={() => setIsInviteModalOpen(false)}
-          team={selectedTeam}
-        />
-      )}
     </div>
   );
 }

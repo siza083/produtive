@@ -687,7 +687,7 @@ export function useTeamMembers(teamId?: string) {
 
       const { data: members, error } = await supabase
         .from('team_members')
-        .select('user_id, role, status, joined_at')
+        .select('user_id, role, status, joined_at, permissions')
         .eq('team_id', teamId)
         .eq('status', 'accepted');
 
@@ -710,6 +710,12 @@ export function useTeamMembers(teamId?: string) {
             role: member.role,
             status: member.status,
             joined_at: member.joined_at,
+            permissions: member.permissions || {},
+            profile: {
+              name: profile?.name || 'Usuário',
+              photo_url: profile?.photo_url
+            },
+            // Keep backward compatibility
             name: profile?.name || 'Usuário',
             photo_url: profile?.photo_url
           };

@@ -3,18 +3,22 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Crown, UserPlus, UserX, ChevronDown, ChevronUp, Users } from 'lucide-react';
+import { Crown, UserPlus, UserX, ChevronDown, ChevronUp, Users, Settings } from 'lucide-react';
 import { useTeamMembers } from '@/hooks/useData';
+import { GrantAccessModal } from './GrantAccessModal';
+import { MemberManagementModal } from './MemberManagementModal';
 
 interface TeamCardProps {
   team: any;
   isExpanded: boolean;
   onToggleExpansion: () => void;
-  onInviteClick: () => void;
 }
 
-export function TeamCard({ team, isExpanded, onToggleExpansion, onInviteClick }: TeamCardProps) {
-  const { data: members, isLoading } = useTeamMembers(team.id);
+export function TeamCard({ team, isExpanded, onToggleExpansion }: TeamCardProps) {
+  const { data: members, isLoading, refetch } = useTeamMembers(team.id);
+  const [isGrantAccessModalOpen, setIsGrantAccessModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
 
   const getRoleDisplay = (role: string) => {
     switch (role) {
@@ -61,10 +65,10 @@ export function TeamCard({ team, isExpanded, onToggleExpansion, onInviteClick }:
             <Button 
               variant="outline" 
               size="sm"
-              onClick={onInviteClick}
+              onClick={() => setIsGrantAccessModalOpen(true)}
             >
               <UserPlus className="h-4 w-4 mr-2" />
-              Convidar
+              Compartilhar Acesso
             </Button>
           )}
           
@@ -120,10 +124,24 @@ export function TeamCard({ team, isExpanded, onToggleExpansion, onInviteClick }:
                           </p>
                         </div>
                       </div>
-                      <Badge variant={getRoleVariant(member.role)} className="text-xs">
-                        {member.role === 'owner' && <Crown className="h-3 w-3 mr-1" />}
-                        {getRoleDisplay(member.role)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={getRoleVariant(member.role)} className="text-xs">
+                          {member.role === 'owner' && <Crown className="h-3 w-3 mr-1" />}
+                          {getRoleDisplay(member.role)}
+                        </Badge>
+                        {(team.role === 'owner' || (team.role === 'admin' && member.role !== 'owner')) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedMember(member);
+                              setIsMemberModalOpen(true);
+                            }}
+                          >
+                            <Settings className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -137,6 +155,27 @@ export function TeamCard({ team, isExpanded, onToggleExpansion, onInviteClick }:
           </div>
         </CollapsibleContent>
       </Collapsible>
+
+      <GrantAccessModal
+        isOpen={isGrantAccessModalOpen}
+        onClose={() => setIsGrantAccessModalOpen(false)}
+        teamId={team.id}
+        onSuccess={() => refetch()}
+      />
+
+      {selectedMember && (
+        <MemberManagementModal
+          isOpen={isMemberModalOpen}
+          onClose={() => {
+            setIsMemberModalOpen(false);
+            setSelectedMember(null);
+          }}
+          member={selectedMember}
+          teamId={team.id}
+          currentUserRole={team.role}
+          onSuccess={() => refetch()}
+        />
+      )}
     </div>
   );
 }
