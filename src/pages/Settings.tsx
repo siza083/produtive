@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useTeams, useCreateTeam, useTeamMembers } from '@/hooks/useData';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 export default function SettingsPage() {
   const { user, signOut, updateProfile } = useAuth();
   const navigate = useNavigate();
+  const { theme, setTheme: setSystemTheme } = useTheme();
   const { data: profile } = useProfile();
   const { data: teams } = useTeams();
   const createTeam = useCreateTeam();
@@ -28,7 +30,6 @@ export default function SettingsPage() {
   // Profile form states
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('');
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
   
   // Team creation states
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
@@ -42,9 +43,13 @@ export default function SettingsPage() {
     if (profile) {
       setName(profile.name || '');
       setTimezone(profile.timezone || 'America/Sao_Paulo');
-      setTheme(profile.theme || 'system');
+      
+      // Sync theme from profile with next-themes
+      if (profile.theme && profile.theme !== theme) {
+        setSystemTheme(profile.theme);
+      }
     }
-  }, [profile]);
+  }, [profile, theme, setSystemTheme]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,11 +58,21 @@ export default function SettingsPage() {
       await updateProfile({
         name: name.trim(),
         timezone,
-        theme
+        theme: theme as 'light' | 'dark' | 'system'
       });
     } catch (error) {
       // Error already handled in hook
     }
+  };
+
+  const handleThemeChange = (newTheme: string) => {
+    setSystemTheme(newTheme);
+    // Optionally update profile immediately
+    updateProfile({
+      name: name.trim(),
+      timezone,
+      theme: newTheme as 'light' | 'dark' | 'system'
+    });
   };
 
   const handleCreateTeam = async (e: React.FormEvent) => {
@@ -210,7 +225,7 @@ export default function SettingsPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="theme">Tema</Label>
-                    <Select value={theme} onValueChange={(value: 'light' | 'dark' | 'system') => setTheme(value)}>
+                    <Select value={theme} onValueChange={handleThemeChange}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
