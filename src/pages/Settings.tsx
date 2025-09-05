@@ -44,12 +44,12 @@ export default function SettingsPage() {
       setName(profile.name || '');
       setTimezone(profile.timezone || 'America/Sao_Paulo');
       
-      // Sync theme from profile with next-themes
-      if (profile.theme && profile.theme !== theme) {
+      // Only sync theme from profile if next-themes hasn't been initialized yet
+      if (profile.theme && theme === 'system') {
         setSystemTheme(profile.theme);
       }
     }
-  }, [profile, theme, setSystemTheme]);
+  }, [profile, setSystemTheme]); // Removed theme from dependencies
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,19 +60,34 @@ export default function SettingsPage() {
         timezone,
         theme: theme as 'light' | 'dark' | 'system'
       });
+      
+      toast({
+        title: "Perfil atualizado!",
+        description: "Suas configurações foram salvas com sucesso."
+      });
     } catch (error) {
-      // Error already handled in hook
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o perfil.",
+        variant: "destructive"
+      });
     }
   };
 
   const handleThemeChange = (newTheme: string) => {
+    console.log('Changing theme from', theme, 'to', newTheme);
+    
+    // First update the system theme
     setSystemTheme(newTheme);
-    // Optionally update profile immediately
-    updateProfile({
-      name: name.trim(),
-      timezone,
-      theme: newTheme as 'light' | 'dark' | 'system'
-    });
+    
+    // Then update the profile
+    setTimeout(() => {
+      updateProfile({
+        name: name.trim(),
+        timezone,
+        theme: newTheme as 'light' | 'dark' | 'system'
+      });
+    }, 100); // Small delay to ensure theme change is processed
   };
 
   const handleCreateTeam = async (e: React.FormEvent) => {
