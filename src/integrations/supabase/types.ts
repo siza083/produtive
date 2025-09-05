@@ -297,6 +297,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      debug_team_creation: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          current_uid: string
+          is_authenticated: boolean
+        }[]
+      }
       remove_member: {
         Args: { p_team: string; p_user: string }
         Returns: undefined
