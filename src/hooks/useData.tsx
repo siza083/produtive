@@ -696,23 +696,11 @@ export function useTeamMembers(teamId?: string) {
         throw error;
       }
       
-      // Get profiles separately for each member
+      // Get display names using the SQL function that accesses auth.users directly
       const membersWithProfiles = await Promise.all(
         (members || []).map(async (member) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('name, photo_url')
-            .eq('user_id', member.user_id)
-            .single();
-          
-          // Better name handling - use the actual name if available
-          let displayName = '';
-          if (profile?.name && profile.name.trim() !== '') {
-            displayName = profile.name.trim();
-          } else {
-            // If no name, show a more helpful message
-            displayName = 'Membro sem nome cadastrado';
-          }
+          const { data: displayName } = await supabase
+            .rpc('get_user_display_name', { user_uuid: member.user_id });
           
           return {
             user_id: member.user_id,
@@ -721,12 +709,12 @@ export function useTeamMembers(teamId?: string) {
             joined_at: member.joined_at,
             permissions: member.permissions || {},
             profile: {
-              name: displayName,
-              photo_url: profile?.photo_url
+              name: displayName || 'Usuário',
+              photo_url: null
             },
             // Keep backward compatibility
-            name: displayName,
-            photo_url: profile?.photo_url
+            name: displayName || 'Usuário',
+            photo_url: null
           };
         })
       );

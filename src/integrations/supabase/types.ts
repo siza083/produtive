@@ -304,6 +304,10 @@ export type Database = {
           is_authenticated: boolean
         }[]
       }
+      get_user_display_name: {
+        Args: { user_uuid: string }
+        Returns: string
+      }
       remove_member: {
         Args: { p_team: string; p_user: string }
         Returns: undefined
