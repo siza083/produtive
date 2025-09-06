@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Crown, UserPlus, UserX, ChevronDown, ChevronUp, Users, Settings } from 'lucide-react';
+import { Crown, UserPlus, UserX, ChevronDown, ChevronUp, Users, Settings, Trash2 } from 'lucide-react';
 import { useTeamMembers } from '@/hooks/useData';
 import { GrantAccessModal } from './GrantAccessModal';
 import { MemberManagementModal } from './MemberManagementModal';
@@ -12,9 +12,10 @@ interface TeamCardProps {
   team: any;
   isExpanded: boolean;
   onToggleExpansion: () => void;
+  onDeleteTeam?: (teamId: string, teamName: string) => void;
 }
 
-export function TeamCard({ team, isExpanded, onToggleExpansion }: TeamCardProps) {
+export function TeamCard({ team, isExpanded, onToggleExpansion, onDeleteTeam }: TeamCardProps) {
   const { data: members, isLoading, refetch } = useTeamMembers(team.id);
   const [isGrantAccessModalOpen, setIsGrantAccessModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
@@ -69,6 +70,18 @@ export function TeamCard({ team, isExpanded, onToggleExpansion }: TeamCardProps)
             >
               <UserPlus className="h-4 w-4 mr-2" />
               Compartilhar Acesso
+            </Button>
+          )}
+          
+          {team.role === 'owner' && onDeleteTeam && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => onDeleteTeam(team.id, team.name)}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
             </Button>
           )}
           

@@ -356,6 +356,30 @@ export function useCreateTeam() {
   });
 }
 
+export function useDeleteTeam() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (teamId: string) => {
+      console.log('Deleting team via RPC:', teamId);
+
+      const { error } = await supabase.rpc('delete_team', {
+        p_team_id: teamId
+      });
+
+      if (error) {
+        console.error('Team deletion error:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks'] });
+    }
+  });
+}
+
 export function useToggleSubtaskStatus() {
   const queryClient = useQueryClient();
 

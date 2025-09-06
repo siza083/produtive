@@ -308,6 +308,10 @@ export type Database = {
           is_authenticated: boolean
         }[]
       }
+      delete_team: {
+        Args: { p_team_id: string }
+        Returns: undefined
+      }
       get_user_display_name: {
         Args: { user_uuid: string }
         Returns: string

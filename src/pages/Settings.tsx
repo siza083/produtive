@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile, useTeams, useCreateTeam, useTeamMembers } from '@/hooks/useData';
+import { useProfile, useTeams, useCreateTeam, useDeleteTeam, useTeamMembers } from '@/hooks/useData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 import { TeamCard } from '@/components/TeamCard';
-import { CheckSquare, Settings, Bell, LogOut, User, Users, Mail, Globe, Palette, Shield, UserPlus, Crown, UserX, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckSquare, Settings, Bell, LogOut, User, Users, Mail, Globe, Palette, Shield, UserPlus, Crown, UserX, Plus, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const { data: profile } = useProfile();
   const { data: teams } = useTeams();
   const createTeam = useCreateTeam();
+  const deleteTeam = useDeleteTeam();
   const { toast } = useToast();
 
   // Profile form states
@@ -106,6 +107,26 @@ export default function SettingsPage() {
       toast({
         title: "Erro",
         description: "Não foi possível criar a equipe.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteTeam = async (teamId: string, teamName: string) => {
+    if (!confirm(`Tem certeza que deseja excluir a equipe "${teamName}"? Esta ação não pode ser desfeita e removerá todas as tarefas e dados relacionados.`)) {
+      return;
+    }
+
+    try {
+      await deleteTeam.mutateAsync(teamId);
+      toast({
+        title: "Equipe excluída!",
+        description: "A equipe foi excluída com sucesso."
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a equipe. Apenas o proprietário pode excluir equipes.",
         variant: "destructive"
       });
     }
@@ -271,14 +292,15 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   {teams?.map((team) => {
                     const isExpanded = expandedTeams.has(team.id);
-                    return (
-                       <TeamCard 
-                         key={team.id} 
-                         team={team} 
-                         isExpanded={isExpanded}
-                         onToggleExpansion={() => toggleTeamExpansion(team.id)}
-                       />
-                    );
+                     return (
+                        <TeamCard 
+                          key={team.id} 
+                          team={team} 
+                          isExpanded={isExpanded}
+                          onToggleExpansion={() => toggleTeamExpansion(team.id)}
+                          onDeleteTeam={handleDeleteTeam}
+                        />
+                     );
                   })}
 
                   {teams?.length === 0 && (
