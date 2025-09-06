@@ -315,49 +315,39 @@ export function useCreateTeam() {
 
   return useMutation({
     mutationFn: async (data: { name: string }) => {
-      console.log('Creating team - User:', user);
+      console.log('Creating team via RPC - User:', user);
       
       if (!user) {
         console.error('User not authenticated');
         throw new Error('Not authenticated');
       }
 
-      console.log('Inserting team with data:', { name: data.name, created_by: user.id });
+      console.log('Creating team with RPC:', { name: data.name });
 
-      const { data: team, error } = await supabase
-        .from('teams')
-        .insert({
-          name: data.name,
-          created_by: user.id
-        })
-        .select()
-        .single();
+      // Use the new RPC function that handles both team creation and owner assignment
+      const { data: teamId, error } = await supabase.rpc('create_team', {
+        p_name: data.name
+      });
 
-      console.log('Team insert result:', { team, error });
+      console.log('Team RPC result:', { teamId, error });
 
       if (error) {
-        console.error('Team insert error:', error);
+        console.error('Team creation error:', error);
         throw error;
       }
 
-      console.log('Adding user as team owner:', { team_id: team.id, user_id: user.id });
+      // Fetch the created team to return it for consistency
+      const { data: team, error: fetchError } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('id', teamId)
+        .single();
 
-      // Add user as owner
-      const { error: memberError } = await supabase
-        .from('team_members')
-        .insert({
-          team_id: team.id,
-          user_id: user.id,
-          role: 'owner',
-          status: 'accepted'
-        });
-
-      console.log('Team member insert result:', { memberError });
-
-      if (memberError) {
-        console.error('Team member insert error:', memberError);
-        throw memberError;
+      if (fetchError) {
+        console.error('Team fetch error:', fetchError);
+        throw fetchError;
       }
+
       return team;
     },
     onSuccess: () => {
