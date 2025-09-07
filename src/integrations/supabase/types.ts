@@ -76,6 +76,35 @@ export type Database = {
         }
         Relationships: []
       }
+      subtask_assignees: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          subtask_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          subtask_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          subtask_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subtask_assignees_subtask_id_fkey"
+            columns: ["subtask_id"]
+            isOneToOne: false
+            referencedRelation: "subtasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subtasks: {
         Row: {
           assignee_id: string | null
@@ -281,6 +310,10 @@ export type Database = {
         }
         Returns: string
       }
+      add_subtask_assignee: {
+        Args: { p_subtask: string; p_user: string }
+        Returns: undefined
+      }
       check_team_admin: {
         Args: { team_uuid: string; user_uuid: string }
         Returns: boolean
@@ -319,6 +352,14 @@ export type Database = {
       remove_member: {
         Args: { p_team: string; p_user: string }
         Returns: undefined
+      }
+      remove_subtask_assignee: {
+        Args: { p_subtask: string; p_user: string }
+        Returns: undefined
+      }
+      set_subtask_assignees: {
+        Args: { p_subtask: string; p_user_ids: string[] }
+        Returns: number
       }
       update_member_access: {
         Args: {

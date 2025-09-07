@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus, CalendarIcon, User, Edit, Trash2, CheckSquare, Circle } from 'lucide-react';
-import { useCreateTask, useUpdateTask, useDeleteTask, useSubtasks, useCreateSubtask, useUpdateSubtask, useDeleteSubtask, useToggleSubtaskStatus, useTeamMembers, type Team } from '@/hooks/useData';
+import { useCreateTask, useUpdateTask, useDeleteTask, useSubtasks, useCreateSubtask, useUpdateSubtask, useDeleteSubtask, useToggleSubtaskStatus, useTeamMembers, useSubtaskAssignees, useSetSubtaskAssignees, type Team } from '@/hooks/useData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -37,7 +37,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
   const [subtaskTitle, setSubtaskTitle] = useState('');
   const [subtaskDescription, setSubtaskDescription] = useState('');
   const [subtaskDueDate, setSubtaskDueDate] = useState<Date | undefined>();
-  const [subtaskAssignee, setSubtaskAssignee] = useState('');
+  const [subtaskAssignees, setSubtaskAssignees] = useState<string[]>([]);
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -49,6 +49,8 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
   const toggleSubtaskStatus = useToggleSubtaskStatus();
   const { user } = useAuth();
   const { data: teamMembers } = useTeamMembers(task?.team_id);
+  const { data: currentAssignees } = useSubtaskAssignees(editingSubtask?.id);
+  const setSubtaskAssigneesMutation = useSetSubtaskAssignees();
   const { toast } = useToast();
 
   const isEditing = !!task;
@@ -132,11 +134,13 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
       title: subtaskTitle.trim(),
       description: subtaskDescription.trim() || undefined,
       due_date: formattedDueDate,
-      assignee_id: subtaskAssignee || undefined,
+      assignees: subtaskAssignees,
       isEditing: !!editingSubtask
     });
 
     try {
+      let subtaskId = editingSubtask?.id;
+      
       if (editingSubtask) {
         console.log('Atualizando subtarefa ID:', editingSubtask.id);
         await updateSubtask.mutateAsync({
@@ -145,31 +149,37 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
           title: subtaskTitle.trim(),
           description: subtaskDescription.trim() || undefined,
           due_date: formattedDueDate,
-          assignee_id: subtaskAssignee || undefined
-        });
-        toast({
-          title: "Atividade atualizada",
-          description: "As alterações foram salvas com sucesso."
+          assignee_id: subtaskAssignees[0] || undefined // Manter compatibilidade com legado
         });
       } else {
-        await createSubtask.mutateAsync({
+        const newSubtask = await createSubtask.mutateAsync({
           task_id: task.id,
           title: subtaskTitle.trim(),
           description: subtaskDescription.trim() || undefined,
           due_date: formattedDueDate,
-          assignee_id: subtaskAssignee || undefined
+          assignee_id: subtaskAssignees[0] || undefined // Manter compatibilidade com legado
         });
-        toast({
-          title: "Atividade criada",
-          description: "A nova atividade foi criada com sucesso."
+        subtaskId = newSubtask.id;
+      }
+
+      // Definir múltiplos responsáveis
+      if (subtaskId && subtaskAssignees.length > 0) {
+        await setSubtaskAssigneesMutation.mutateAsync({
+          subtaskId,
+          userIds: subtaskAssignees
         });
       }
+
+      toast({
+        title: editingSubtask ? "Atividade atualizada" : "Atividade criada",
+        description: editingSubtask ? "As alterações foram salvas com sucesso." : "A nova atividade foi criada com sucesso."
+      });
       
       // Reset form
       setSubtaskTitle('');
       setSubtaskDescription('');
       setSubtaskDueDate(undefined);
-      setSubtaskAssignee('');
+      setSubtaskAssignees([]);
       setIsSubtaskFormOpen(false);
       setEditingSubtask(null);
     } catch (error) {
@@ -188,7 +198,14 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
     setSubtaskDescription(subtask.description || '');
     // Garantir que a data seja carregada corretamente (sem problemas de timezone)
     setSubtaskDueDate(subtask.due_date ? new Date(subtask.due_date + 'T00:00:00') : undefined);
-    setSubtaskAssignee(subtask.assignee_id || '');
+    // Carregar responsáveis existentes
+    if (currentAssignees) {
+      setSubtaskAssignees(currentAssignees.map(a => a.user_id));
+    } else if (subtask.assignee_id) {
+      setSubtaskAssignees([subtask.assignee_id]);
+    } else {
+      setSubtaskAssignees([]);
+    }
     setIsSubtaskFormOpen(true);
   };
 
@@ -362,39 +379,79 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                         </PopoverContent>
                       </Popover>
                       
-                      <Select value={subtaskAssignee || "none"} onValueChange={(value) => setSubtaskAssignee(value === "none" ? "" : value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Responsável" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sem responsável</SelectItem>
-                          {user && (
-                            <SelectItem value={user.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-xs">
-                                    {user.email?.charAt(0).toUpperCase() || '?'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>Eu mesmo</span>
-                              </div>
-                            </SelectItem>
-                          )}
-                          {teamMembers?.filter(member => member.user_id !== user?.id).map((member) => (
-                            <SelectItem key={member.user_id} value={member.user_id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
+                      <div className="space-y-2">
+                        <Label>Responsáveis</Label>
+                        <div className="border rounded-md p-2 min-h-[40px] flex flex-wrap gap-1">
+                          {subtaskAssignees.map(assigneeId => {
+                            const member = assigneeId === user?.id ? 
+                              { user_id: user.id, name: 'Eu mesmo', photo_url: null } :
+                              teamMembers?.find(m => m.user_id === assigneeId);
+                            if (!member) return null;
+                            return (
+                              <Badge key={assigneeId} variant="secondary" className="flex items-center gap-1">
+                                <Avatar className="h-4 w-4">
                                   <AvatarImage src={member.photo_url || undefined} />
                                   <AvatarFallback className="text-xs">
                                     {member.name?.charAt(0).toUpperCase() || '?'}
                                   </AvatarFallback>
                                 </Avatar>
-                                <span>{member.name}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                                <span className="text-xs">{member.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSubtaskAssignees(prev => prev.filter(id => id !== assigneeId))}
+                                  className="ml-1 text-xs hover:text-destructive"
+                                >
+                                  ×
+                                </button>
+                              </Badge>
+                            );
+                          })}
+                          {subtaskAssignees.length === 0 && (
+                            <span className="text-sm text-muted-foreground">Nenhum responsável</span>
+                          )}
+                        </div>
+                        <Select 
+                          value=""
+                          onValueChange={(value) => {
+                            if (value && !subtaskAssignees.includes(value)) {
+                              setSubtaskAssignees(prev => [...prev, value]);
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Adicionar responsável" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {user && !subtaskAssignees.includes(user.id) && (
+                              <SelectItem value={user.id}>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarFallback className="text-xs">
+                                      {user.email?.charAt(0).toUpperCase() || '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span>Eu mesmo</span>
+                                </div>
+                              </SelectItem>
+                            )}
+                            {teamMembers?.filter(member => 
+                              member.user_id !== user?.id && !subtaskAssignees.includes(member.user_id)
+                            ).map((member) => (
+                              <SelectItem key={member.user_id} value={member.user_id}>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarImage src={member.photo_url || undefined} />
+                                    <AvatarFallback className="text-xs">
+                                      {member.name?.charAt(0).toUpperCase() || '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span>{member.name}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     
                     <div className="flex gap-2">
@@ -415,7 +472,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                           setSubtaskTitle('');
                           setSubtaskDescription('');
                           setSubtaskDueDate(undefined);
-                          setSubtaskAssignee('');
+                          setSubtaskAssignees([]);
                         }}
                       >
                         Cancelar

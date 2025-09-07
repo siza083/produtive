@@ -163,11 +163,14 @@ export function useDashboardData() {
 
       console.log('Dashboard query starting for user:', user.id);
 
-      // Get only subtasks assigned to the current user
+      // Get subtasks assigned to the current user (using new table)
       const { data: subtasks, error } = await supabase
         .from('subtasks')
-        .select('*')
-        .eq('assignee_id', user.id)
+        .select(`
+          *,
+          subtask_assignees!inner(user_id)
+        `)
+        .eq('subtask_assignees.user_id', user.id)
         .is('deleted_at', null);
 
       console.log('Dashboard subtasks query result:', { subtasks, error });
@@ -844,6 +847,47 @@ export function useDeleteSubtask() {
       queryClient.invalidateQueries({ queryKey: ['subtasks'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    }
+  });
+}
+
+// Hook para buscar responsáveis de uma subtarefa
+export function useSubtaskAssignees(subtaskId?: string) {
+  return useQuery({
+    queryKey: ['subtask_assignees', subtaskId],
+    queryFn: async () => {
+      if (!subtaskId) return [];
+      
+      const { data, error } = await supabase
+        .from('subtask_assignees')
+        .select('*')
+        .eq('subtask_id', subtaskId);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!subtaskId
+  });
+}
+
+// Hook para definir responsáveis de uma subtarefa
+export function useSetSubtaskAssignees() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ subtaskId, userIds }: { subtaskId: string; userIds: string[] }) => {
+      const { data, error } = await supabase.rpc('set_subtask_assignees', {
+        p_subtask: subtaskId,
+        p_user_ids: userIds
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, { subtaskId }) => {
+      queryClient.invalidateQueries({ queryKey: ['subtask_assignees', subtaskId] });
+      queryClient.invalidateQueries({ queryKey: ['subtasks'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     }
   });
 }
