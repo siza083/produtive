@@ -38,6 +38,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
   const [subtaskDescription, setSubtaskDescription] = useState('');
   const [subtaskDueDate, setSubtaskDueDate] = useState<Date | undefined>();
   const [subtaskAssignees, setSubtaskAssignees] = useState<string[]>([]);
+  const [subtaskPriority, setSubtaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -149,7 +150,8 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
           title: subtaskTitle.trim(),
           description: subtaskDescription.trim() || undefined,
           due_date: formattedDueDate,
-          assignee_id: subtaskAssignees[0] || undefined // Manter compatibilidade com legado
+          assignee_id: subtaskAssignees[0] || undefined, // Manter compatibilidade com legado
+          priority: subtaskPriority
         });
       } else {
         const newSubtask = await createSubtask.mutateAsync({
@@ -157,7 +159,8 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
           title: subtaskTitle.trim(),
           description: subtaskDescription.trim() || undefined,
           due_date: formattedDueDate,
-          assignee_id: subtaskAssignees[0] || undefined // Manter compatibilidade com legado
+          assignee_id: subtaskAssignees[0] || undefined, // Manter compatibilidade com legado
+          priority: subtaskPriority
         });
         subtaskId = newSubtask.id;
       }
@@ -180,6 +183,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
       setSubtaskDescription('');
       setSubtaskDueDate(undefined);
       setSubtaskAssignees([]);
+      setSubtaskPriority('medium');
       setIsSubtaskFormOpen(false);
       setEditingSubtask(null);
     } catch (error) {
@@ -198,6 +202,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
     setSubtaskDescription(subtask.description || '');
     // Garantir que a data seja carregada corretamente (sem problemas de timezone)
     setSubtaskDueDate(subtask.due_date ? new Date(subtask.due_date + 'T00:00:00') : undefined);
+    setSubtaskPriority(subtask.priority || 'medium');
     // Carregar responsáveis existentes
     if (currentAssignees) {
       setSubtaskAssignees(currentAssignees.map(a => a.user_id));
@@ -357,6 +362,20 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                       rows={2}
                     />
                     
+                    <div className="space-y-2">
+                      <Label>Prioridade</Label>
+                      <Select value={subtaskPriority} onValueChange={(value: 'low' | 'medium' | 'high') => setSubtaskPriority(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="high">Alta</SelectItem>
+                          <SelectItem value="medium">Média</SelectItem>
+                          <SelectItem value="low">Baixa</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
                     <div className="grid grid-cols-2 gap-3">
                       <Popover>
                         <PopoverTrigger asChild>
@@ -473,6 +492,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                           setSubtaskDescription('');
                           setSubtaskDueDate(undefined);
                           setSubtaskAssignees([]);
+                          setSubtaskPriority('medium');
                         }}
                       >
                         Cancelar
@@ -504,6 +524,20 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                             Concluída
                           </Badge>
                         )}
+                        {/* Priority Badge */}
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${
+                            (subtask.priority || 'medium') === 'high' 
+                              ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300' 
+                              : (subtask.priority || 'medium') === 'medium'
+                              ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                              : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
+                          }`}
+                        >
+                          {(subtask.priority || 'medium') === 'high' ? 'Alta' : 
+                           (subtask.priority || 'medium') === 'medium' ? 'Média' : 'Baixa'}
+                        </Badge>
                       </div>
                       
                       {(subtask.due_date || subtask.assignee) && (

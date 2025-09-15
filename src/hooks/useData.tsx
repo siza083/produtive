@@ -40,6 +40,7 @@ export interface Subtask {
   due_date?: string;
   assignee_id?: string;
   status: 'open' | 'done';
+  priority: 'low' | 'medium' | 'high';
   completed_at?: string;
   created_by: string;
   created_at: string;
@@ -231,17 +232,28 @@ export function useDashboardData() {
       ).length;
 
       // Get tasks for the list (overdue + today)
+      // Only show tasks assigned to current user that are either:
+      // - Overdue (not completed, with date before today)
+      // - Due today (date = today)
       const listTasks = validSubtasks.filter(s => 
         s.status === 'open' && s.due_date && 
         (s.due_date < today || s.due_date === today)
       ).sort((a, b) => {
-        // Overdue first, then by date and title
-        const aOverdue = a.due_date! < today;
-        const bOverdue = b.due_date! < today;
+        // Sort by:
+        // 1. Overdue first (due_date < today)
+        const aIsOverdue = a.due_date! < today;
+        const bIsOverdue = b.due_date! < today;
         
-        if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
-        if (a.due_date !== b.due_date) return a.due_date!.localeCompare(b.due_date!);
-        return a.title.localeCompare(b.title);
+        if (aIsOverdue && !bIsOverdue) return -1;
+        if (!aIsOverdue && bIsOverdue) return 1;
+        
+        // 2. Priority: high > medium > low
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        const priorityDiff = (priorityOrder[b.priority || 'medium'] || 2) - (priorityOrder[a.priority || 'medium'] || 2);
+        if (priorityDiff !== 0) return priorityDiff;
+        
+        // 3. Created date
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
 
       // Generate chart data for weekdays (Mon-Fri)
@@ -631,6 +643,7 @@ export function useCreateSubtask() {
       description?: string; 
       due_date?: string; 
       assignee_id?: string;
+      priority?: 'low' | 'medium' | 'high';
     }) => {
       if (!user) throw new Error('Not authenticated');
 
@@ -665,6 +678,7 @@ export function useUpdateSubtask() {
       description?: string; 
       due_date?: string; 
       assignee_id?: string;
+      priority?: 'low' | 'medium' | 'high';
     }) => {
       const { error } = await supabase
         .from('subtasks')

@@ -34,6 +34,7 @@ export function TodayAndOverdueList() {
   const [editDescription, setEditDescription] = useState('');
   const [editDueDate, setEditDueDate] = useState<Date | undefined>();
   const [editAssignee, setEditAssignee] = useState('');
+  const [editPriority, setEditPriority] = useState<'low' | 'medium' | 'high'>('medium');
   
   // Get team members for the task being edited
   const { data: teamMembers } = useTeamMembers(editingSubtask?.task?.team_id);
@@ -71,6 +72,7 @@ export function TodayAndOverdueList() {
     setEditDescription(subtask.description || '');
     setEditDueDate(subtask.due_date ? new Date(subtask.due_date + 'T00:00:00') : undefined);
     setEditAssignee(subtask.assignee_id || '');
+    setEditPriority(subtask.priority || 'medium');
     setIsEditModalOpen(true);
   };
 
@@ -87,7 +89,8 @@ export function TodayAndOverdueList() {
         title: editTitle.trim(),
         description: editDescription.trim() || undefined,
         due_date: formattedDueDate,
-        assignee_id: editAssignee || undefined
+        assignee_id: editAssignee || undefined,
+        priority: editPriority
       });
       
       toast({
@@ -211,6 +214,20 @@ export function TodayAndOverdueList() {
             <span className="text-sm text-muted-foreground truncate">
               {task.task?.title}
             </span>
+            {/* Priority Badge */}
+            <Badge 
+              variant="outline" 
+              className={`text-xs ${
+                (task.priority || 'medium') === 'high' 
+                  ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300' 
+                  : (task.priority || 'medium') === 'medium'
+                  ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                  : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400'
+              }`}
+            >
+              {(task.priority || 'medium') === 'high' ? 'Alta' : 
+               (task.priority || 'medium') === 'medium' ? 'Média' : 'Baixa'}
+            </Badge>
           </div>
           
           <h4 className="font-medium truncate">{task.title}</h4>
@@ -382,6 +399,20 @@ export function TodayAndOverdueList() {
                 placeholder="Descrição (opcional)"
                 rows={2}
               />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Prioridade</Label>
+              <Select value={editPriority} onValueChange={(value: 'low' | 'medium' | 'high') => setEditPriority(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">Alta</SelectItem>
+                  <SelectItem value="medium">Média</SelectItem>
+                  <SelectItem value="low">Baixa</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="grid grid-cols-2 gap-3">
