@@ -203,16 +203,20 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
     // Garantir que a data seja carregada corretamente (sem problemas de timezone)
     setSubtaskDueDate(subtask.due_date ? new Date(subtask.due_date + 'T00:00:00') : undefined);
     setSubtaskPriority(subtask.priority || 'medium');
-    // Carregar responsáveis existentes
-    if (currentAssignees) {
-      setSubtaskAssignees(currentAssignees.map(a => a.user_id));
-    } else if (subtask.assignee_id) {
-      setSubtaskAssignees([subtask.assignee_id]);
-    } else {
-      setSubtaskAssignees([]);
-    }
+    // Os responsáveis serão carregados pelo useEffect quando currentAssignees estiver disponível
+    setSubtaskAssignees([]);
     setIsSubtaskFormOpen(true);
   };
+
+  // UseEffect para carregar responsáveis quando currentAssignees estiver disponível
+  useEffect(() => {
+    if (editingSubtask && currentAssignees) {
+      setSubtaskAssignees(currentAssignees.map(a => a.user_id));
+    } else if (editingSubtask && !currentAssignees && editingSubtask.assignee_id) {
+      // Fallback para o campo legado se não houver responsáveis na nova tabela
+      setSubtaskAssignees([editingSubtask.assignee_id]);
+    }
+  }, [editingSubtask, currentAssignees]);
 
   const handleDeleteSubtask = async (subtaskId: string) => {
     try {
