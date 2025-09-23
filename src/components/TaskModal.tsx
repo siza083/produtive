@@ -11,13 +11,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus, CalendarIcon, User, Edit, Trash2, CheckSquare, Circle } from 'lucide-react';
+import { Plus, CalendarIcon, User, Edit, Trash2, CheckSquare, Circle, RotateCcw } from 'lucide-react';
 import { useCreateTask, useUpdateTask, useDeleteTask, useSubtasks, useCreateSubtask, useUpdateSubtask, useDeleteSubtask, useToggleSubtaskStatus, useTeamMembers, useSubtaskAssignees, useSetSubtaskAssignees, type Team } from '@/hooks/useData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import dayjs from 'dayjs';
+import { supabase } from '@/integrations/supabase/client';
+import { Switch } from '@/components/ui/switch';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -39,6 +41,11 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
   const [subtaskDueDate, setSubtaskDueDate] = useState<Date | undefined>();
   const [subtaskAssignees, setSubtaskAssignees] = useState<string[]>([]);
   const [subtaskPriority, setSubtaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  
+  // Recurrence states
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceWeekdays, setRecurrenceWeekdays] = useState<number[]>([]);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>();
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -173,6 +180,19 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
         });
       }
 
+      // Configurar recorrência semanal se habilitada
+      if (subtaskId && isRecurring && recurrenceWeekdays.length > 0) {
+        const formattedEndDate = recurrenceEndDate ? 
+          `${recurrenceEndDate.getFullYear()}-${String(recurrenceEndDate.getMonth() + 1).padStart(2, '0')}-${String(recurrenceEndDate.getDate()).padStart(2, '0')}` : null;
+        
+        await supabase.rpc('set_subtask_weekly_recurrence', {
+          p_parent: subtaskId,
+          p_weekdays: recurrenceWeekdays,
+          p_end_date: formattedEndDate,
+          p_timezone: 'America/Fortaleza'
+        });
+      }
+
       toast({
         title: editingSubtask ? "Atividade atualizada" : "Atividade criada",
         description: editingSubtask ? "As alterações foram salvas com sucesso." : "A nova atividade foi criada com sucesso."
@@ -184,6 +204,9 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
       setSubtaskDueDate(undefined);
       setSubtaskAssignees([]);
       setSubtaskPriority('medium');
+      setIsRecurring(false);
+      setRecurrenceWeekdays([]);
+      setRecurrenceEndDate(undefined);
       setIsSubtaskFormOpen(false);
       setEditingSubtask(null);
     } catch (error) {
@@ -379,6 +402,92 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Recurrence Section */}
+                    <div className="space-y-3 border-t pt-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <RotateCcw className="h-4 w-4" />
+                          <Label htmlFor="recurring">Repetir semanalmente</Label>
+                        </div>
+                        <Switch
+                          id="recurring"
+                          checked={isRecurring}
+                          onCheckedChange={setIsRecurring}
+                        />
+                      </div>
+
+                      {isRecurring && (
+                        <div className="space-y-3 pl-6">
+                          <div className="space-y-2">
+                            <Label>Dias da semana</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {[
+                                { value: 1, label: 'Seg' },
+                                { value: 2, label: 'Ter' },
+                                { value: 3, label: 'Qua' },
+                                { value: 4, label: 'Qui' },
+                                { value: 5, label: 'Sex' },
+                                { value: 6, label: 'Sáb' },
+                                { value: 7, label: 'Dom' }
+                              ].map(day => (
+                                <div key={day.value} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`day-${day.value}`}
+                                    checked={recurrenceWeekdays.includes(day.value)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setRecurrenceWeekdays(prev => [...prev, day.value].sort());
+                                      } else {
+                                        setRecurrenceWeekdays(prev => prev.filter(d => d !== day.value));
+                                      }
+                                    }}
+                                  />
+                                  <Label htmlFor={`day-${day.value}`} className="text-sm">
+                                    {day.label}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Repetir até (opcional)</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" className="justify-start">
+                                  <CalendarIcon className="h-4 w-4 mr-2" />
+                                  {recurrenceEndDate ? 
+                                    format(recurrenceEndDate, 'dd/MM/yyyy', { locale: ptBR }) : 
+                                    'Selecionar data'
+                                  }
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                  mode="single"
+                                  selected={recurrenceEndDate}
+                                  onSelect={setRecurrenceEndDate}
+                                  locale={ptBR}
+                                  className="p-3 pointer-events-auto"
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            {recurrenceEndDate && (
+                              <Button 
+                                type="button"
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setRecurrenceEndDate(undefined)}
+                                className="text-xs text-muted-foreground"
+                              >
+                                Remover data limite
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     
                     <div className="grid grid-cols-2 gap-3">
                       <Popover>
@@ -497,6 +606,9 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                           setSubtaskDueDate(undefined);
                           setSubtaskAssignees([]);
                           setSubtaskPriority('medium');
+                          setIsRecurring(false);
+                          setRecurrenceWeekdays([]);
+                          setRecurrenceEndDate(undefined);
                         }}
                       >
                         Cancelar
@@ -526,6 +638,13 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
                         {subtask.status === 'done' && (
                           <Badge variant="secondary" className="text-xs">
                             Concluída
+                          </Badge>
+                        )}
+                        {/* Recurring Badge */}
+                        {(subtask as any).is_recurring && (
+                          <Badge variant="outline" className="text-xs flex items-center gap-1">
+                            <RotateCcw className="h-3 w-3" />
+                            Semanal
                           </Badge>
                         )}
                         {/* Priority Badge */}

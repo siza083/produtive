@@ -105,6 +105,41 @@ export type Database = {
           },
         ]
       }
+      subtask_recurrences: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          parent_subtask_id: string
+          timezone: string | null
+          updated_at: string
+          weekdays: number[]
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          parent_subtask_id: string
+          timezone?: string | null
+          updated_at?: string
+          weekdays: number[]
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          parent_subtask_id?: string
+          timezone?: string | null
+          updated_at?: string
+          weekdays?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subtask_recurrences_parent_subtask_id_fkey"
+            columns: ["parent_subtask_id"]
+            isOneToOne: true
+            referencedRelation: "subtasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subtasks: {
         Row: {
           assignee_id: string | null
@@ -115,7 +150,9 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          is_recurring: boolean
           priority: Database["public"]["Enums"]["subtask_priority"]
+          recurrence_parent_id: string | null
           status: string
           task_id: string
           title: string
@@ -129,7 +166,9 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_recurring?: boolean
           priority?: Database["public"]["Enums"]["subtask_priority"]
+          recurrence_parent_id?: string | null
           status?: string
           task_id: string
           title: string
@@ -143,12 +182,21 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_recurring?: boolean
           priority?: Database["public"]["Enums"]["subtask_priority"]
+          recurrence_parent_id?: string | null
           status?: string
           task_id?: string
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "subtasks_recurrence_parent_id_fkey"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "subtasks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "subtasks_task_id_fkey"
             columns: ["task_id"]
@@ -352,6 +400,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: string
       }
+      materialize_weekly_recurrences: {
+        Args: { p_from: string; p_parent: string; p_to: string }
+        Returns: number
+      }
       remove_member: {
         Args: { p_team: string; p_user: string }
         Returns: undefined
@@ -362,6 +414,19 @@ export type Database = {
       }
       set_subtask_assignees: {
         Args: { p_subtask: string; p_user_ids: string[] }
+        Returns: number
+      }
+      set_subtask_weekly_recurrence: {
+        Args: {
+          p_end_date?: string
+          p_parent: string
+          p_timezone?: string
+          p_weekdays: number[]
+        }
+        Returns: undefined
+      }
+      top_up_all_recurrences: {
+        Args: { p_days_ahead?: number }
         Returns: number
       }
       update_member_access: {
