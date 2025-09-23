@@ -182,15 +182,28 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
 
       // Configurar recorrência semanal se habilitada
       if (subtaskId && isRecurring && recurrenceWeekdays.length > 0) {
+        // Determinar o ID efetivo do parent (modelo da recorrência)
+        const effectiveParentId = editingSubtask ? getEffectiveParentId(editingSubtask) : subtaskId;
+        
         const formattedEndDate = recurrenceEndDate ? 
           `${recurrenceEndDate.getFullYear()}-${String(recurrenceEndDate.getMonth() + 1).padStart(2, '0')}-${String(recurrenceEndDate.getDate()).padStart(2, '0')}` : null;
         
-        await supabase.rpc('set_subtask_weekly_recurrence', {
-          p_parent: subtaskId,
+        const { error } = await supabase.rpc('set_subtask_weekly_recurrence', {
+          p_parent: effectiveParentId,
           p_weekdays: recurrenceWeekdays,
           p_end_date: formattedEndDate,
           p_timezone: 'America/Fortaleza'
         });
+
+        if (error) {
+          console.error('Erro ao salvar recorrência:', error);
+          toast({
+            title: "Erro na recorrência",
+            description: `Erro ao configurar repetição: ${error.message}`,
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
       toast({
@@ -231,6 +244,35 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
     setIsSubtaskFormOpen(true);
   };
 
+  // Função para determinar o ID efetivo do parent (modelo da recorrência)
+  const getEffectiveParentId = (subtask: any) => {
+    if (!subtask) return null;
+    return subtask.recurrence_parent_id && subtask.recurrence_parent_id !== subtask.id
+      ? subtask.recurrence_parent_id  // estou numa ocorrência → o pai é o "modelo"
+      : subtask.id;                    // estou no "modelo" → o pai é ele mesmo
+  };
+
+  // Função para carregar configuração de recorrência
+  const loadRecurrenceSettings = async (effectiveParentId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('subtask_recurrences')
+        .select('weekdays, end_date, timezone')
+        .eq('parent_subtask_id', effectiveParentId)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading recurrence:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error loading recurrence settings:', error);
+      return null;
+    }
+  };
+
   // UseEffect para carregar responsáveis quando currentAssignees estiver disponível
   useEffect(() => {
     if (editingSubtask && currentAssignees) {
@@ -240,6 +282,39 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
       setSubtaskAssignees([editingSubtask.assignee_id]);
     }
   }, [editingSubtask, currentAssignees]);
+
+  // UseEffect para carregar configurações de recorrência ao editar subtarefa
+  useEffect(() => {
+    if (editingSubtask) {
+      const effectiveParentId = getEffectiveParentId(editingSubtask);
+      console.log('Loading recurrence settings for subtask:', {
+        subtaskId: editingSubtask.id,
+        effectiveParentId,
+        isRecurring: editingSubtask.is_recurring,
+        recurrenceParentId: editingSubtask.recurrence_parent_id
+      });
+      
+      if (effectiveParentId) {
+        loadRecurrenceSettings(effectiveParentId).then(recurrence => {
+          console.log('Loaded recurrence settings:', recurrence);
+          if (recurrence) {
+            setIsRecurring(true);
+            setRecurrenceWeekdays(recurrence.weekdays || []);
+            setRecurrenceEndDate(recurrence.end_date ? new Date(recurrence.end_date + 'T00:00:00') : undefined);
+          } else {
+            setIsRecurring(false);
+            setRecurrenceWeekdays([]);
+            setRecurrenceEndDate(undefined);
+          }
+        });
+      }
+    } else {
+      // Reset quando não estiver editando
+      setIsRecurring(false);
+      setRecurrenceWeekdays([]);
+      setRecurrenceEndDate(undefined);
+    }
+  }, [editingSubtask]);
 
   const handleDeleteSubtask = async (subtaskId: string) => {
     try {
@@ -370,9 +445,18 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
               {/* Subtask Form */}
               {isSubtaskFormOpen && (
                 <div className="border rounded-lg p-4 space-y-4">
-                  <h4 className="font-medium">
-                    {editingSubtask ? 'Editar Atividade' : 'Nova Atividade'}
-                  </h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">
+                      {editingSubtask ? 'Editar Atividade' : 'Nova Atividade'}
+                    </h4>
+                    {editingSubtask && editingSubtask.recurrence_parent_id && 
+                     editingSubtask.recurrence_parent_id !== editingSubtask.id && (
+                      <Badge variant="outline" className="text-xs">
+                        <RotateCcw className="h-3 w-3 mr-1" />
+                        Ocorrência recorrente
+                      </Badge>
+                    )}
+                  </div>
                   
                   <form onSubmit={handleSubtaskSubmit} className="space-y-3">
                     <Input
