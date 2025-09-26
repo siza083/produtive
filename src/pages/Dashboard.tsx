@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckSquare, Settings, Bell, LogOut, Plus, Users } from 'lucide-react';
 import { DashboardCards } from '@/components/DashboardCards';
-import { WeekBarChart } from '@/components/WeekBarChart';
 import { TodayAndOverdueList } from '@/components/TodayAndOverdueList';
+import { CurrentWeekList } from '@/components/CurrentWeekList';
+import { NextWeekList } from '@/components/NextWeekList';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
@@ -84,7 +85,7 @@ export default function Dashboard() {
             Olá, {user?.user_metadata?.name || user?.email?.split('@')[0]}! 👋
           </h2>
           <p className="text-muted-foreground">
-            Aqui está um resumo das suas atividades para hoje
+            Gerencie suas atividades e acompanhe o progresso da sua equipe
           </p>
         </div>
 
@@ -94,11 +95,10 @@ export default function Dashboard() {
             <div className="space-y-8">
               <DashboardCards />
               
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <WeekBarChart />
-                <div className="space-y-6">
-                  <TodayAndOverdueList />
-                </div>
+              <div className="space-y-8">
+                <TodayAndOverdueList />
+                <CurrentWeekList />
+                <NextWeekList />
               </div>
             </div>
           </>

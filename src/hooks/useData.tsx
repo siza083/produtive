@@ -45,6 +45,8 @@ export interface Subtask {
   created_by: string;
   created_at: string;
   deleted_at?: string;
+  is_recurring?: boolean;
+  recurrence_parent_id?: string;
   task?: Task;
   assignee?: { name?: string; photo_url?: string };
 }
@@ -145,6 +147,118 @@ export function useTasks(teamId?: string) {
       })) as any[];
     },
     enabled: !!user
+  });
+}
+
+// Hook for current week tasks (Monday to Sunday)
+export function useCurrentWeekTasks() {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+  
+  return useQuery({
+    queryKey: ['current-week-tasks', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const userTimezone = profile?.timezone || 'America/Sao_Paulo';
+      const weekStart = dayjs().tz(userTimezone).startOf('isoWeek').add(1, 'day').format('YYYY-MM-DD'); // Monday
+      const weekEnd = dayjs().tz(userTimezone).startOf('isoWeek').add(7, 'day').format('YYYY-MM-DD'); // Sunday
+
+        const { data: subtasks, error } = await supabase
+        .from('subtasks')
+        .select(`
+          *,
+          subtask_assignees!inner(user_id),
+          task:tasks!inner(
+            id,
+            title,
+            team_id,
+            team:teams(id, name)
+          )
+        `)
+        .eq('subtask_assignees.user_id', user.id)
+        .gte('due_date', weekStart)
+        .lte('due_date', weekEnd)
+        .is('deleted_at', null)
+        .order('due_date', { ascending: true })
+        .order('priority', { ascending: false });
+
+      if (error) throw error;
+
+      return (subtasks || []).map(subtask => ({
+        ...subtask,
+        task: subtask.task ? {
+          id: subtask.task.id,
+          title: subtask.task.title,
+          team_id: subtask.task.team_id,
+          created_by: '',
+          created_at: '',
+          team: subtask.task.team ? {
+            id: subtask.task.team.id,
+            name: subtask.task.team.name,
+            created_by: '',
+            created_at: ''
+          } : undefined
+        } : undefined
+      })) as Subtask[];
+    },
+    enabled: !!user && !!profile
+  });
+}
+
+// Hook for next week tasks (Monday to Sunday)
+export function useNextWeekTasks() {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+  
+  return useQuery({
+    queryKey: ['next-week-tasks', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const userTimezone = profile?.timezone || 'America/Sao_Paulo';
+      const nextWeekStart = dayjs().tz(userTimezone).startOf('isoWeek').add(8, 'day').format('YYYY-MM-DD'); // Next Monday
+      const nextWeekEnd = dayjs().tz(userTimezone).startOf('isoWeek').add(14, 'day').format('YYYY-MM-DD'); // Next Sunday
+
+        const { data: subtasks, error } = await supabase
+        .from('subtasks')
+        .select(`
+          *,
+          subtask_assignees!inner(user_id),
+          task:tasks!inner(
+            id,
+            title,
+            team_id,
+            team:teams(id, name)
+          )
+        `)
+        .eq('subtask_assignees.user_id', user.id)
+        .gte('due_date', nextWeekStart)
+        .lte('due_date', nextWeekEnd)
+        .is('deleted_at', null)
+        .order('due_date', { ascending: true })
+        .order('priority', { ascending: false });
+
+      if (error) throw error;
+
+      return (subtasks || []).map(subtask => ({
+        ...subtask,
+        task: subtask.task ? {
+          id: subtask.task.id,
+          title: subtask.task.title,
+          team_id: subtask.task.team_id,
+          created_by: '',
+          created_at: '',
+          team: subtask.task.team ? {
+            id: subtask.task.team.id,
+            name: subtask.task.team.name,
+            created_by: '',
+            created_at: ''
+          } : undefined
+        } : undefined
+      })) as Subtask[];
+    },
+    enabled: !!user && !!profile
   });
 }
 
