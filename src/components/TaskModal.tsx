@@ -50,7 +50,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
-  const { data: subtasks } = useSubtasks(task?.id);
+  const { data: subtasks, refetch: refetchSubtasks } = useSubtasks(task?.id);
   const createSubtask = useCreateSubtask();
   const updateSubtask = useUpdateSubtask();
   const deleteSubtask = useDeleteSubtask();
@@ -211,6 +211,12 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
         description: editingSubtask ? "As alterações foram salvas com sucesso." : "A nova atividade foi criada com sucesso."
       });
       
+      // Refetch data to ensure UI is updated
+      await Promise.all([
+        refetchSubtasks(),
+        // Additional refetches could be added here if needed
+      ]);
+      
       // Reset form
       setSubtaskTitle('');
       setSubtaskDescription('');
@@ -255,17 +261,20 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
   // Função para carregar configuração de recorrência
   const loadRecurrenceSettings = async (effectiveParentId: string) => {
     try {
+      console.log('Loading recurrence settings for parent ID:', effectiveParentId);
+      
       const { data, error } = await supabase
         .from('subtask_recurrences')
         .select('weekdays, end_date, timezone')
         .eq('parent_subtask_id', effectiveParentId)
         .maybeSingle();
       
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error loading recurrence:', error);
         return null;
       }
       
+      console.log('Loaded recurrence settings:', data);
       return data;
     } catch (error) {
       console.error('Error loading recurrence settings:', error);
