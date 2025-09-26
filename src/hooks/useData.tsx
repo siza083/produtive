@@ -606,6 +606,8 @@ export function useSubtasks(taskId?: string) {
         .select('*')
         .eq('task_id', taskId)
         .is('deleted_at', null)
+        // mostrar só: (a) não recorrentes OU (b) o modelo (is_recurring = true)
+        .or('recurrence_parent_id.is.null,is_recurring.eq.true')
         .order('created_at', { ascending: true });
 
       if (error) throw error;
