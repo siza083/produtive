@@ -404,6 +404,44 @@ export type Database = {
         Args: { p_from: string; p_parent: string; p_to: string }
         Returns: number
       }
+      my_nextweek_pending: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          assignee_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          is_recurring: boolean
+          priority: Database["public"]["Enums"]["subtask_priority"]
+          recurrence_parent_id: string | null
+          status: string
+          task_id: string
+          title: string
+        }[]
+      }
+      my_week_pending: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          assignee_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          is_recurring: boolean
+          priority: Database["public"]["Enums"]["subtask_priority"]
+          recurrence_parent_id: string | null
+          status: string
+          task_id: string
+          title: string
+        }[]
+      }
       remove_member: {
         Args: { p_team: string; p_user: string }
         Returns: undefined
