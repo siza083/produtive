@@ -485,6 +485,8 @@ export function useToggleSubtaskStatus() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['subtasks'] });
+      queryClient.invalidateQueries({ queryKey: ['current-week-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['next-week-tasks'] });
     }
   });
 }
