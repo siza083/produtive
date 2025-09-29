@@ -188,6 +188,15 @@ export function useCurrentWeekTasks() {
   });
 }
 
+// Force refresh of week lists after fixing RPC
+export const useRefreshWeekLists = () => {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ['current-week-tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['next-week-tasks'] });
+  };
+};
+
 // Hook for next week tasks (Monday to Sunday)
 export function useNextWeekTasks() {
   const { user } = useAuth();
