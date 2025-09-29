@@ -392,6 +392,14 @@ export type Database = {
           is_authenticated: boolean
         }[]
       }
+      debug_whoami: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          role: string
+          tz_now: string
+          uid: string
+        }[]
+      }
       delete_team: {
         Args: { p_team_id: string }
         Returns: undefined
@@ -405,7 +413,7 @@ export type Database = {
         Returns: number
       }
       my_nextweek_pending: {
-        Args: Record<PropertyKey, never>
+        Args: { p_user?: string }
         Returns: {
           assignee_id: string | null
           completed_at: string | null
@@ -424,7 +432,7 @@ export type Database = {
         }[]
       }
       my_week_pending: {
-        Args: Record<PropertyKey, never>
+        Args: { p_user?: string }
         Returns: {
           assignee_id: string | null
           completed_at: string | null

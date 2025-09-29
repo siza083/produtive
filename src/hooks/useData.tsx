@@ -159,7 +159,9 @@ export function useCurrentWeekTasks() {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data: subtasks, error } = await supabase.rpc('my_week_pending');
+      const { data: subtasks, error } = await supabase.rpc('my_week_pending', {
+        p_user: user.id
+      });
       if (error) throw error;
 
       // Get task and team details
@@ -195,7 +197,9 @@ export function useNextWeekTasks() {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data: subtasks, error } = await supabase.rpc('my_nextweek_pending');
+      const { data: subtasks, error } = await supabase.rpc('my_nextweek_pending', {
+        p_user: user.id
+      });
       if (error) throw error;
 
       // Get task and team details
