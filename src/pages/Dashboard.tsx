@@ -97,8 +97,12 @@ export default function Dashboard() {
               
               <div className="space-y-8">
                 <TodayAndOverdueList />
-                <CurrentWeekList />
-                <NextWeekList />
+                
+                {/* Desktop: lado a lado, Mobile: empilhadas */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <CurrentWeekList />
+                  <NextWeekList />
+                </div>
               </div>
             </div>
           </>

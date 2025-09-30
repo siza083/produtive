@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Check, Calendar, Edit, CalendarIcon } from 'lucide-react';
+import { Check, Calendar, Edit, CalendarIcon, ChevronDown } from 'lucide-react';
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNextWeekTasks, useToggleSubtaskStatus, useUpdateSubtask, type Subtask } from '@/hooks/useData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +34,10 @@ export function NextWeekList() {
   const [editDescription, setEditDescription] = useState('');
   const [editDueDate, setEditDueDate] = useState<Date | undefined>();
   const [editPriority, setEditPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  
+  // View More modal
+  const [isViewMoreOpen, setIsViewMoreOpen] = useState(false);
+  const INITIAL_DISPLAY_COUNT = 3;
 
   const handleToggleStatus = async (subtask: Subtask) => {
     const newStatus = subtask.status === 'open' ? 'done' : 'open';
@@ -204,6 +209,9 @@ export function NextWeekList() {
     );
   };
 
+  const displayedTasks = tasks.slice(0, INITIAL_DISPLAY_COUNT);
+  const hasMore = tasks.length > INITIAL_DISPLAY_COUNT;
+
   return (
     <>
       <Card>
@@ -211,11 +219,39 @@ export function NextWeekList() {
           <CardTitle>Atividades da Próxima Semana</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {tasks.map(task => (
+          {displayedTasks.map(task => (
             <TaskItem key={task.id} task={task} />
           ))}
+          
+          {hasMore && (
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setIsViewMoreOpen(true)}
+            >
+              <ChevronDown className="h-4 w-4 mr-2" />
+              Ver Mais ({tasks.length - INITIAL_DISPLAY_COUNT} atividades)
+            </Button>
+          )}
         </CardContent>
       </Card>
+      
+      {/* View More Modal */}
+      <Dialog open={isViewMoreOpen} onOpenChange={setIsViewMoreOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Todas as Atividades da Próxima Semana ({tasks.length})</DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="h-[60vh] pr-4">
+            <div className="space-y-3">
+              {tasks.map(task => (
+                <TaskItem key={task.id} task={task} />
+              ))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
       
       {/* Edit Subtask Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
