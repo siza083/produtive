@@ -39,22 +39,30 @@ export function TodayAndOverdueList() {
   // Get team members for the task being edited
   const { data: teamMembers } = useTeamMembers(editingSubtask?.task?.team_id);
 
-  const handleToggleStatus = async (subtask: Subtask) => {
-    const newStatus = subtask.status === 'open' ? 'done' : 'open';
-    
-    // Optimistic update
+  const handleStatusChange = async (subtask: Subtask, newStatus: string) => {
     setOptimisticUpdates(prev => ({ ...prev, [subtask.id]: true }));
     
     try {
-      await toggleStatus.mutateAsync({ id: subtask.id, status: newStatus });
+      await updateSubtask.mutateAsync({ 
+        id: subtask.id, 
+        status: newStatus as 'todo' | 'in_progress' | 'done' | 'waiting_client'
+      });
+      
+      const statusLabels = {
+        'todo': 'A fazer',
+        'in_progress': 'Em Progresso',
+        'done': 'Concluído',
+        'waiting_client': 'Aguardando Cliente'
+      };
+      
       toast({
-        title: newStatus === 'done' ? "Atividade concluída!" : "Atividade reaberta",
-        description: `"${subtask.title}" foi ${newStatus === 'done' ? 'marcada como concluída' : 'reaberta'}.`
+        title: "Status atualizado",
+        description: `"${subtask.title}" está agora como ${statusLabels[newStatus as keyof typeof statusLabels]}.`
       });
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar a atividade.",
+        description: "Não foi possível atualizar o status.",
         variant: "destructive"
       });
     } finally {
@@ -197,13 +205,78 @@ export function TodayAndOverdueList() {
   const TaskItem = ({ task, isOverdue }: { task: Subtask; isOverdue: boolean }) => {
     const isUpdating = optimisticUpdates[task.id];
     
+    const getStatusBadgeColor = (status: string) => {
+      switch (status) {
+        case 'done':
+          return 'border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300';
+        case 'in_progress':
+          return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300';
+        case 'waiting_client':
+          return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-300';
+        default: // 'todo'
+          return 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300';
+      }
+    };
+    
+    const getStatusLabel = (status: string) => {
+      switch (status) {
+        case 'done': return 'Concluído';
+        case 'in_progress': return 'Em Progresso';
+        case 'waiting_client': return 'Aguardando Cliente';
+        default: return 'A fazer';
+      }
+    };
+    
     return (
       <div className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-        <Checkbox
-          checked={task.status === 'done'}
-          onCheckedChange={() => handleToggleStatus(task)}
-          disabled={isUpdating}
-        />
+        <div className="min-w-[140px]">
+          <Select 
+            value={task.status || 'todo'} 
+            onValueChange={(value) => handleStatusChange(task, value)}
+            disabled={isUpdating}
+          >
+            <SelectTrigger className="h-8">
+              <SelectValue>
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs ${getStatusBadgeColor(task.status || 'todo')}`}
+                >
+                  {getStatusLabel(task.status || 'todo')}
+                </Badge>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todo">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`text-xs ${getStatusBadgeColor('todo')}`}>
+                    A fazer
+                  </Badge>
+                </div>
+              </SelectItem>
+              <SelectItem value="in_progress">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`text-xs ${getStatusBadgeColor('in_progress')}`}>
+                    Em Progresso
+                  </Badge>
+                </div>
+              </SelectItem>
+              <SelectItem value="waiting_client">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`text-xs ${getStatusBadgeColor('waiting_client')}`}>
+                    Aguardando Cliente
+                  </Badge>
+                </div>
+              </SelectItem>
+              <SelectItem value="done">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`text-xs ${getStatusBadgeColor('done')}`}>
+                    Concluído
+                  </Badge>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">

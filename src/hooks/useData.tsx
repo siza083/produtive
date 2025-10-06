@@ -770,6 +770,7 @@ export function useUpdateSubtask() {
       due_date?: string; 
       assignee_id?: string;
       priority?: 'low' | 'medium' | 'high';
+      status?: 'todo' | 'in_progress' | 'done' | 'waiting_client';
     }) => {
       const { error } = await supabase
         .from('subtasks')
