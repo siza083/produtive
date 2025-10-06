@@ -301,11 +301,11 @@ export function useDashboardData() {
 
       // Calculate metrics
       const todayTasks = validSubtasks.filter(s => 
-        s.status === 'open' && s.due_date === today
+        s.status !== 'done' && s.due_date === today
       ).length;
 
       const overdueTasks = validSubtasks.filter(s => 
-        s.status === 'open' && s.due_date && s.due_date < today
+        s.status !== 'done' && s.due_date && s.due_date < today
       ).length;
 
       const weekTasks = validSubtasks.filter(s => 
@@ -323,7 +323,7 @@ export function useDashboardData() {
       // - Overdue (not completed, with date before today)
       // - Due today (date = today)
       const listTasks = validSubtasks.filter(s => 
-        s.status === 'open' && s.due_date && 
+        s.status !== 'done' && s.due_date && 
         (s.due_date < today || s.due_date === today)
       ).sort((a, b) => {
         // Sort by:
@@ -359,11 +359,11 @@ export function useDashboardData() {
         let overdue = 0;
         if (isPast) {
           overdue = validSubtasks.filter(s => 
-            s.status === 'open' && s.due_date === dateStr
+            s.status !== 'done' && s.due_date === dateStr
           ).length;
         } else if (isToday) {
           overdue = validSubtasks.filter(s => 
-            s.status === 'open' && s.due_date === dateStr
+            s.status !== 'done' && s.due_date === dateStr
           ).length;
         }
 
