@@ -180,29 +180,57 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
         });
       }
 
-      // Configurar recorrência semanal se habilitada
-      if (subtaskId && isRecurring && recurrenceWeekdays.length > 0) {
-        // Determinar o ID efetivo do parent (modelo da recorrência)
+      // Configurar ou remover recorrência semanal
+      if (subtaskId) {
         const effectiveParentId = editingSubtask ? getEffectiveParentId(editingSubtask) : subtaskId;
         
-        const formattedEndDate = recurrenceEndDate ? 
-          `${recurrenceEndDate.getFullYear()}-${String(recurrenceEndDate.getMonth() + 1).padStart(2, '0')}-${String(recurrenceEndDate.getDate()).padStart(2, '0')}` : null;
-        
-        const { error } = await supabase.rpc('set_subtask_weekly_recurrence', {
-          p_parent: effectiveParentId,
-          p_weekdays: recurrenceWeekdays,
-          p_end_date: formattedEndDate,
-          p_timezone: 'America/Fortaleza'
-        });
-
-        if (error) {
-          console.error('Erro ao salvar recorrência:', error);
-          toast({
-            title: "Erro na recorrência",
-            description: `Erro ao configurar repetição: ${error.message}`,
-            variant: "destructive"
+        if (isRecurring && recurrenceWeekdays.length > 0) {
+          // Configurar recorrência
+          const formattedEndDate = recurrenceEndDate ? 
+            `${recurrenceEndDate.getFullYear()}-${String(recurrenceEndDate.getMonth() + 1).padStart(2, '0')}-${String(recurrenceEndDate.getDate()).padStart(2, '0')}` : null;
+          
+          const { error } = await supabase.rpc('set_subtask_weekly_recurrence', {
+            p_parent: effectiveParentId,
+            p_weekdays: recurrenceWeekdays,
+            p_end_date: formattedEndDate,
+            p_timezone: 'America/Fortaleza'
           });
-          return;
+
+          if (error) {
+            console.error('Erro ao salvar recorrência:', error);
+            toast({
+              title: "Erro na recorrência",
+              description: `Erro ao configurar repetição: ${error.message}`,
+              variant: "destructive"
+            });
+            return;
+          }
+        } else if (editingSubtask && editingSubtask.is_recurring) {
+          // Remover recorrência se estava habilitada antes
+          console.log('Removendo recorrência da subtarefa:', effectiveParentId);
+          
+          // Remover da tabela subtask_recurrences
+          const { error: deleteError } = await supabase
+            .from('subtask_recurrences')
+            .delete()
+            .eq('parent_subtask_id', effectiveParentId);
+
+          if (deleteError) {
+            console.error('Erro ao remover recorrência:', deleteError);
+          }
+
+          // Atualizar campos is_recurring e recurrence_parent_id na subtarefa
+          const { error: updateError } = await supabase
+            .from('subtasks')
+            .update({ 
+              is_recurring: false,
+              recurrence_parent_id: null
+            })
+            .eq('id', effectiveParentId);
+
+          if (updateError) {
+            console.error('Erro ao atualizar subtarefa:', updateError);
+          }
         }
       }
 
