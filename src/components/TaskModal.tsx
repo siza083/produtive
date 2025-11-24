@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +61,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
   const { data: currentAssignees } = useSubtaskAssignees(editingSubtask?.id);
   const setSubtaskAssigneesMutation = useSetSubtaskAssignees();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const isEditing = !!task;
 
@@ -221,6 +223,10 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
 
           if (deleteOccurrencesError) {
             console.error('Erro ao marcar ocorrências como deletadas:', deleteOccurrencesError);
+          } else {
+            // Invalidar cache das listas de semanas
+            queryClient.invalidateQueries({ queryKey: ['current-week-tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['next-week-tasks'] });
           }
           
           // Remover da tabela subtask_recurrences
