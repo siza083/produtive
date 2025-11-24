@@ -373,41 +373,29 @@ export type Database = {
         Args: { team_uuid: string; user_uuid: string }
         Returns: boolean
       }
-      create_team: {
-        Args: { p_name: string }
-        Returns: string
-      }
+      create_team: { Args: { p_name: string }; Returns: string }
       create_team_invite: {
         Args: { p_invited_email: string; p_role: string; p_team_id: string }
         Returns: undefined
       }
-      debug_auth_uid: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      debug_auth_uid: { Args: never; Returns: string }
       debug_team_creation: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           current_uid: string
           is_authenticated: boolean
         }[]
       }
       debug_whoami: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           role: string
           tz_now: string
           uid: string
         }[]
       }
-      delete_team: {
-        Args: { p_team_id: string }
-        Returns: undefined
-      }
-      get_user_display_name: {
-        Args: { user_uuid: string }
-        Returns: string
-      }
+      delete_team: { Args: { p_team_id: string }; Returns: undefined }
+      get_user_display_name: { Args: { user_uuid: string }; Returns: string }
       materialize_weekly_recurrences: {
         Args: { p_from: string; p_parent: string; p_to: string }
         Returns: number
@@ -430,6 +418,12 @@ export type Database = {
           task_id: string
           title: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "subtasks"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       my_week_pending: {
         Args: { p_user?: string }
@@ -449,6 +443,12 @@ export type Database = {
           task_id: string
           title: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "subtasks"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       remove_member: {
         Args: { p_team: string; p_user: string }
