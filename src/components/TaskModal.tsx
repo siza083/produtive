@@ -209,6 +209,20 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
           // Remover recorrência se estava habilitada antes
           console.log('Removendo recorrência da subtarefa:', effectiveParentId);
           
+          // Marcar ocorrências futuras não completadas como deletadas (soft delete)
+          const today = new Date().toISOString().split('T')[0];
+          const { error: deleteOccurrencesError } = await supabase
+            .from('subtasks')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('recurrence_parent_id', effectiveParentId)
+            .gte('due_date', today)
+            .is('completed_at', null)
+            .is('deleted_at', null);
+
+          if (deleteOccurrencesError) {
+            console.error('Erro ao marcar ocorrências como deletadas:', deleteOccurrencesError);
+          }
+          
           // Remover da tabela subtask_recurrences
           const { error: deleteError } = await supabase
             .from('subtask_recurrences')
@@ -219,7 +233,7 @@ export function TaskModal({ isOpen, onClose, task, teams }: TaskModalProps) {
             console.error('Erro ao remover recorrência:', deleteError);
           }
 
-          // Atualizar campos is_recurring e recurrence_parent_id na subtarefa
+          // Atualizar campos is_recurring e recurrence_parent_id na subtarefa pai
           const { error: updateError } = await supabase
             .from('subtasks')
             .update({ 
